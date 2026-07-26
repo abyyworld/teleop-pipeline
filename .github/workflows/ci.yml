@@ -1,0 +1,122 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install ruff==0.6.9
+      - run: ruff check src tests flows
+      - run: ruff format --check src tests flows
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      # CPU wheels only: this suite never needs a GPU, and the CUDA build is
+      # ~2 GB of download for no benefit.
+      - name: Install
+        run: |
+          pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e '.[dev]'
+      - run: pytest -q --cov=erl_teleop --cov-report=term-missing
+
+  pipeline:
+    # The claim this repo makes is "clone it and the whole thing reproduces".
+    # This job is what keeps that claim true.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e '.[dev,data]'
+
+      - name: Reproduce the full pipeline
+        run: |
+          dvc repro --force
+          dvc metrics show
+
+      - name: Check the data-quality gate
+        # Fails the build if the corpus degrades: if more than 25% of episodes
+        # are being rejected, something upstream broke and no amount of green
+        # unit tests makes the resulting policy trustworthy.
+        run: |
+          python - <<'PY'
+          import json, sys
+          summary = json.load(open("reports/quality_summary.json"))
+          total = summary["n_episodes"]
+          rejected = summary["tiers"].get("reject", 0)
+          share = rejected / total if total else 1.0
+          print(f"{rejected}/{total} episodes rejected ({share:.1%})")
+          print("mean score:", summary["score"]["mean"])
+          if share > 0.25:
+              sys.exit(f"FAIL: reject rate {share:.1%} exceeds the 25% budget")
+          if summary["score"]["mean"] < 60:
+              sys.exit(f"FAIL: mean quality {summary['score']['mean']} below 60")
+          PY
+
+      - name: Confirm the run is traceable
+        # A checkpoint you cannot trace to a data version and a commit is not a
+        # result. If lineage stops being written, the build should break.
+        run: |
+          python - <<'PY'
+          import json, sys
+          lineage = json.load(open("artifacts/lineage.json"))
+          missing = [
+              k for k in ("dataset_hash", "git", "params", "checkpoint")
+              if not lineage.get(k)
+          ]
+          if missing:
+              sys.exit(f"FAIL: lineage is missing {missing}")
+          if not lineage["checkpoint"].get("sha256"):
+              sys.exit("FAIL: checkpoint has no content hash")
+          print("dataset:", lineage["dataset_hash"])
+          print("commit: ", (lineage["git"] or {}).get("commit"))
+          PY
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "## Data quality"
+            cat reports/data_quality.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipeline-reports
+          path: |
+            reports/
+            artifacts/lineage.json
+            artifacts/train_summary.json
+          retention-days: 14

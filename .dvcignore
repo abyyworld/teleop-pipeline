@@ -1,0 +1,8 @@
+# Keep DVC from hashing things that are not data.
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+mlruns/
+.DS_Store

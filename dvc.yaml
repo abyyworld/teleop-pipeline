@@ -1,0 +1,117 @@
+# The reproducible pipeline. `dvc repro` walks this DAG, reruns only the stages
+# whose declared deps or params actually changed, and records the resulting data
+# hashes in dvc.lock — which is what makes a result from a year ago rebuildable.
+#
+# Every stage shells out to the same CLI a human would use, and no stage writes
+# into another stage's outputs. That second rule is the one people break: as
+# soon as a stage mutates an upstream output, DVC's staleness detection starts
+# lying and `dvc repro` silently serves stale results.
+
+stages:
+  synth:
+    # Only here so a fresh clone reproduces end to end. Point `ingest.raw_dir`
+    # at the real teleop dump and delete this stage.
+    cmd: python -m erl_teleop.cli synth --sessions 48 --seed 0
+    deps:
+      - src/erl_teleop/synthetic.py
+    params:
+      - robot
+      - ingest.raw_dir
+    outs:
+      - data/raw
+
+  ingest:
+    cmd: python -m erl_teleop.cli ingest
+    deps:
+      - data/raw
+      - src/erl_teleop/ingest.py
+      - src/erl_teleop/io.py
+      - src/erl_teleop/schema.py
+    params:
+      - robot
+      - ingest
+    outs:
+      - data/interim/episodes
+
+  validate:
+    cmd: python -m erl_teleop.cli validate --no-quarantine
+    deps:
+      - data/interim/episodes
+      - src/erl_teleop/validate.py
+    params:
+      - robot
+      - validate
+    outs:
+      - reports/validation.json:
+          cache: false
+
+  score:
+    cmd: python -m erl_teleop.cli score
+    deps:
+      - data/interim/episodes
+      - src/erl_teleop/quality.py
+    params:
+      - robot
+      - quality
+    outs:
+      - reports/quality.json:
+          cache: false
+    metrics:
+      - reports/quality_summary.json:
+          cache: false
+
+  dataset:
+    cmd: python -m erl_teleop.cli dataset
+    deps:
+      - data/interim/episodes
+      - reports/quality.json
+      - reports/validation.json
+      - src/erl_teleop/dataset.py
+    params:
+      - robot
+      - dataset
+    outs:
+      - data/processed
+
+  train:
+    cmd: python -m erl_teleop.cli train
+    deps:
+      - data/processed
+      - src/erl_teleop/train.py
+    params:
+      - train
+      - tracking
+    outs:
+      - artifacts/policy.pt
+      - artifacts/lineage.json:
+          cache: false
+      - artifacts/history.json:
+          cache: false
+    metrics:
+      - artifacts/train_summary.json:
+          cache: false
+
+  evaluate:
+    cmd: python -m erl_teleop.cli eval --split val
+    deps:
+      - artifacts/policy.pt
+      - data/processed
+      - src/erl_teleop/evaluate.py
+    params:
+      - evaluate
+    outs:
+      - reports/eval_val.json:
+          cache: false
+    metrics:
+      - reports/eval_val_metrics.json:
+          cache: false
+
+  report:
+    cmd: python -m erl_teleop.cli report
+    deps:
+      - reports/quality.json
+      - reports/validation.json
+      - src/erl_teleop/report.py
+    outs:
+      - reports/data_quality.md:
+          cache: false

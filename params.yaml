@@ -1,0 +1,118 @@
+# Single source of truth for every pipeline stage.
+# DVC hashes this file, so changing any value invalidates exactly the stages
+# that depend on it and nothing else. Never hardcode these in Python.
+
+robot:
+  name: franka_panda_teleop
+  n_joints: 7
+  control_hz: 20.0
+  # Franka Panda joint limits (rad), used for range validation + saturation checks.
+  joint_lower: [-2.8973, -1.7628, -2.8973, -3.0718, -2.8973, -0.0175, -2.8973]
+  joint_upper: [2.8973, 1.7628, 2.8973, -0.0698, 2.8973, 3.7525, 2.8973]
+  # Max per-step commanded joint delta (rad) at control_hz. Actions are clipped
+  # to this by the teleop rig, so |action| near this bound means the operator
+  # was pinned at the leader-arm limit.
+  action_limit: 0.08
+
+ingest:
+  raw_dir: data/raw
+  episode_dir: data/interim/episodes
+  quarantine_dir: data/quarantine
+  # Resample every session onto a uniform grid at robot.control_hz. Teleop rigs
+  # log at whatever rate the loop happened to run, which makes fixed-dt models
+  # silently wrong. Gaps larger than max_gap_s are left as holes, not bridged.
+  resample: true
+  max_gap_s: 0.25
+
+validate:
+  min_steps: 20
+  max_steps: 6000
+  max_nan_fraction: 0.02
+  # Reject episodes whose recorded dt drifts more than this from the nominal.
+  max_mean_dt_error: 0.35
+
+quality:
+  # Joint speed (rad/s, L2 over joints) below which a step counts as idle.
+  # Set just above the encoder noise floor of the follower arm.
+  idle_speed_eps: 0.02
+  # A commanded-delta discontinuity counts as a spike at this many robust
+  # (MAD) scales above the episode's own median. High because teleop is
+  # legitimately jerky; we are looking for tracker glitches, not for speed.
+  jerk_spike_k: 12.0
+
+  # Each metric is mapped to a penalty in [0, 1] by linear interpolation between
+  # (good, bad); the composite score is 100 * (1 - weighted mean penalty).
+  # Tuned against the defect generator in scripts/make_synthetic_sessions.py.
+  metrics:
+    dropped_frame_rate: { weight: 2.0, good: 0.00, bad: 0.10, flag_at: 0.05 }
+    timing_jitter: { weight: 1.0, good: 0.05, bad: 0.40, flag_at: 0.30 }
+    nan_fraction: { weight: 2.0, good: 0.00, bad: 0.05, flag_at: 0.01 }
+    idle_fraction: { weight: 1.5, good: 0.10, bad: 0.60, flag_at: 0.50 }
+    action_saturation: { weight: 1.5, good: 0.02, bad: 0.30, flag_at: 0.20 }
+    jerk_spike_rate: { weight: 1.0, good: 0.00, bad: 0.05, flag_at: 0.03 }
+    gripper_chatter_hz: { weight: 1.0, good: 0.05, bad: 1.00, flag_at: 0.60 }
+    tracking_error: { weight: 2.0, good: 0.002, bad: 0.030, flag_at: 0.020 }
+    duration_zabs: { weight: 0.5, good: 0.50, bad: 3.00, flag_at: 2.50 }
+  tiers:
+    gold: 85.0
+    silver: 65.0
+  # Independent of score: these conditions always reject.
+  hard_reject:
+    max_nan_fraction: 0.10
+    max_dropped_frame_rate: 0.25
+    min_steps: 20
+
+dataset:
+  out_dir: data/processed
+  min_tier: silver          # gold | silver — reject is never included
+  require_success: true     # drop operator-marked failed demos
+  val_fraction: 0.2
+  # Split on session_id, never on episode_id. Episodes inside one session share
+  # an operator, a calibration and a scene layout; splitting per-episode leaks
+  # all three into validation and inflates val metrics by a wide margin.
+  split_on: session_id
+  seed: 17
+  # `prev_act_*` feeds the previously executed action back in as an observation.
+  # Without it a BC policy cannot beat a persistence baseline on smooth 20 Hz
+  # teleop — it has no way to express "keep doing what you were doing", and the
+  # eval harness will say so.
+  #
+  # It is not free. Action history is the classic cause of causal confusion in
+  # behaviour cloning: the policy learns to copy its previous action and stops
+  # attending to the state, which looks excellent offline and drifts on the
+  # real robot. `train.action_horizon > 1` is the mitigation — predicting a
+  # chunk forces the model to commit to a plan the previous action alone cannot
+  # supply. Drop these two keys to measure the effect; `docs/BASELINES.md`
+  # records both configurations.
+  obs_keys: [q, dq, ee_pos, ee_quat, grip, prev_act_q, prev_act_grip]
+  action_keys: [act_q, act_grip]
+
+train:
+  seed: 17
+  hidden_sizes: [256, 256]
+  dropout: 0.05
+  lr: 0.0003
+  weight_decay: 0.0001
+  batch_size: 256
+  epochs: 80
+  # Predict a chunk of future actions rather than one step. Action chunking is
+  # the single cheapest fix for compounding error in BC (cf. ACT / diffusion
+  # policy); horizon 1 reproduces vanilla behaviour cloning.
+  action_horizon: 8
+  early_stop_patience: 15
+  device: auto              # auto | cpu | cuda | mps
+
+evaluate:
+  # Open-loop N-step prediction error. No simulator in this repo — closed-loop
+  # benchmarking lives in erl-vla-evals, which consumes the checkpoint + lineage
+  # emitted here.
+  rollout_horizons: [1, 8, 32]
+  bootstrap_samples: 1000
+  bootstrap_seed: 17
+
+tracking:
+  # file:./mlruns works with zero infrastructure. Point at a lab MLflow server
+  # by setting MLFLOW_TRACKING_URI; the code prefers the env var when present.
+  backend: mlflow           # mlflow | jsonl | none
+  uri: file:./mlruns
+  experiment: erl-teleop-bc

@@ -1,0 +1,36 @@
+# DVC manages everything under data/ — git only tracks the .dvc pointers.
+/data/raw
+/data/interim
+/data/processed
+/data/quarantine
+!/data/**/.gitkeep
+
+# Pipeline outputs
+/artifacts/
+/runs/
+/mlruns/
+/reports/
+*.ckpt
+*.pt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Prefect
+.prefect/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
