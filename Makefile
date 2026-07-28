@@ -34,9 +34,20 @@ fmt: ## Auto-format
 	$(BIN)/ruff format src tests flows
 	$(BIN)/ruff check --fix src tests flows
 
+# DVC runs each stage command in a subshell. Invoking $(BIN)/dvc does *not* put
+# the virtualenv's bin directory on PATH, so a stage running `python -m ...`
+# resolves against the system Python — which on macOS has python3 but no
+# `python`, and the stage dies with "command not found". Export the venv onto
+# PATH for every target that shells out to a stage.
+VENV_PATH := PATH="$(CURDIR)/$(VENV)/bin:$$PATH"
+
 .PHONY: repro
 repro: ## Rebuild everything DVC considers stale
-	$(BIN)/dvc repro
+	$(VENV_PATH) $(BIN)/dvc repro
+
+.PHONY: repro-force
+repro-force: ## Rebuild every stage, ignoring the cache
+	$(VENV_PATH) $(BIN)/dvc repro --force
 
 .PHONY: pipeline
 pipeline: ## Run every stage directly, without DVC

@@ -12,12 +12,17 @@ the exact bytes it was trained on.
 git clone https://github.com/abyyworld/erl-teleop-pipeline
 cd erl-teleop-pipeline
 make install-all
-dvc repro          # synthetic sessions -> corpus -> dataset -> policy -> eval
+make repro         # synthetic sessions -> corpus -> dataset -> policy -> eval
 ```
 
-That command runs the entire pipeline on generated data, so the repository is
-assessable without access to a lab's demonstrations. Point `ingest.raw_dir` at a
-real teleop dump and delete the `synth` stage to use it for real.
+That runs the entire pipeline on generated data, so the repository is assessable
+without access to a lab's demonstrations. Point `ingest.raw_dir` at a real teleop
+dump and delete the `synth` stage to use it for real.
+
+Use `make repro` rather than calling `dvc repro` directly unless the virtualenv
+is activated. DVC runs each stage in a subshell, and an unactivated venv leaves
+the stage's `python` resolving to the system interpreter — which on macOS has
+`python3` but no `python`. The Makefile target puts the venv on `PATH` for you.
 
 ---
 
@@ -109,10 +114,10 @@ levels. The scorer never sees them, and recovers the ranking exactly:
 
 | Operator | Generator skill | Mean quality score |
 | --- | ---: | ---: |
-| `op_amelia` | 0.92 | 96.1 |
-| `op_bram` | 0.78 | 90.5 |
-| `op_chidi` | 0.55 | 86.3 |
-| `op_dara` | 0.35 | 83.6 |
+| `op_amelia` | 0.92 | 96.2 |
+| `op_bram` | 0.78 | 91.9 |
+| `op_chidi` | 0.55 | 87.7 |
+| `op_dara` | 0.35 | 82.9 |
 
 That correspondence is asserted in the test suite
 (`test_quality_recovers_the_generators_operator_ranking`), so it stays true.
@@ -194,7 +199,7 @@ Every training run writes a `lineage.json`:
 
 ```json
 {
-  "dataset_hash": "4ddbf4ffc8a625b6",
+  "dataset_hash": "233fac37d03f9c45",
   "git": { "commit": "…", "branch": "main", "dirty": false },
   "dvc_lock_hash": "…",
   "checkpoint": { "sha256": "…", "bytes": 1259304 },

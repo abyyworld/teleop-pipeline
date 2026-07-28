@@ -1,0 +1,408 @@
+schema: '2.0'
+stages:
+  synth:
+    cmd: python -m erl_teleop.cli synth --sessions 48 --seed 0
+    deps:
+    - path: src/erl_teleop/synthetic.py
+      hash: md5
+      md5: 771f7b20ed3c610a572cbca4d5b89722
+      size: 10866
+    params:
+      params.yaml:
+        ingest.raw_dir: data/raw
+        robot:
+          name: franka_panda_teleop
+          n_joints: 7
+          control_hz: 20.0
+          joint_lower:
+          - -2.8973
+          - -1.7628
+          - -2.8973
+          - -3.0718
+          - -2.8973
+          - -0.0175
+          - -2.8973
+          joint_upper:
+          - 2.8973
+          - 1.7628
+          - 2.8973
+          - -0.0698
+          - 2.8973
+          - 3.7525
+          - 2.8973
+          action_limit: 0.08
+    outs:
+    - path: data/raw
+      hash: md5
+      md5: 0cd8c1c5bf6d08af3ad047b3c40b5320.dir
+      size: 23633458
+      nfiles: 337
+  ingest:
+    cmd: python -m erl_teleop.cli ingest
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 0cd8c1c5bf6d08af3ad047b3c40b5320.dir
+      size: 23633458
+      nfiles: 337
+    - path: src/erl_teleop/ingest.py
+      hash: md5
+      md5: db09db78d993fd4079d2ff327779a8b2
+      size: 11473
+    - path: src/erl_teleop/io.py
+      hash: md5
+      md5: 89b91b6ae2e9dd58bcb8541db9616eca
+      size: 3643
+    - path: src/erl_teleop/schema.py
+      hash: md5
+      md5: fb029cebe488b6aeb62855eb501ff5d7
+      size: 6048
+    params:
+      params.yaml:
+        ingest:
+          raw_dir: data/raw
+          episode_dir: data/interim/episodes
+          quarantine_dir: data/quarantine
+          resample: true
+          max_gap_s: 0.25
+        robot:
+          name: franka_panda_teleop
+          n_joints: 7
+          control_hz: 20.0
+          joint_lower:
+          - -2.8973
+          - -1.7628
+          - -2.8973
+          - -3.0718
+          - -2.8973
+          - -0.0175
+          - -2.8973
+          joint_upper:
+          - 2.8973
+          - 1.7628
+          - 2.8973
+          - -0.0698
+          - 2.8973
+          - 3.7525
+          - 2.8973
+          action_limit: 0.08
+    outs:
+    - path: data/interim/episodes
+      hash: md5
+      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
+      size: 10343502
+      nfiles: 627
+  validate:
+    cmd: python -m erl_teleop.cli validate --no-quarantine
+    deps:
+    - path: data/interim/episodes
+      hash: md5
+      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
+      size: 10343502
+      nfiles: 627
+    - path: src/erl_teleop/validate.py
+      hash: md5
+      md5: 6684fe6326ba472388c551ee163d51ac
+      size: 7715
+    params:
+      params.yaml:
+        robot:
+          name: franka_panda_teleop
+          n_joints: 7
+          control_hz: 20.0
+          joint_lower:
+          - -2.8973
+          - -1.7628
+          - -2.8973
+          - -3.0718
+          - -2.8973
+          - -0.0175
+          - -2.8973
+          joint_upper:
+          - 2.8973
+          - 1.7628
+          - 2.8973
+          - -0.0698
+          - 2.8973
+          - 3.7525
+          - 2.8973
+          action_limit: 0.08
+        validate:
+          min_steps: 20
+          max_steps: 6000
+          max_nan_fraction: 0.02
+          max_mean_dt_error: 0.35
+    outs:
+    - path: reports/validation.json
+      hash: md5
+      md5: 3248aa497b74a99a67349214744985c2
+      size: 44370
+  score:
+    cmd: python -m erl_teleop.cli score
+    deps:
+    - path: data/interim/episodes
+      hash: md5
+      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
+      size: 10343502
+      nfiles: 627
+    - path: src/erl_teleop/quality.py
+      hash: md5
+      md5: a92abf67fc3ab0cc20b2ebf6aa1b1068
+      size: 13557
+    params:
+      params.yaml:
+        quality:
+          idle_speed_eps: 0.02
+          jerk_spike_k: 12.0
+          metrics:
+            dropped_frame_rate:
+              weight: 2.0
+              good: 0.0
+              bad: 0.1
+              flag_at: 0.05
+            timing_jitter:
+              weight: 1.0
+              good: 0.05
+              bad: 0.4
+              flag_at: 0.3
+            nan_fraction:
+              weight: 2.0
+              good: 0.0
+              bad: 0.05
+              flag_at: 0.01
+            idle_fraction:
+              weight: 1.5
+              good: 0.1
+              bad: 0.6
+              flag_at: 0.5
+            action_saturation:
+              weight: 1.5
+              good: 0.02
+              bad: 0.3
+              flag_at: 0.2
+            jerk_spike_rate:
+              weight: 1.0
+              good: 0.0
+              bad: 0.05
+              flag_at: 0.03
+            gripper_chatter_hz:
+              weight: 1.0
+              good: 0.05
+              bad: 1.0
+              flag_at: 0.6
+            tracking_error:
+              weight: 2.0
+              good: 0.002
+              bad: 0.03
+              flag_at: 0.02
+            duration_zabs:
+              weight: 0.5
+              good: 0.5
+              bad: 3.0
+              flag_at: 2.5
+          tiers:
+            gold: 85.0
+            silver: 65.0
+          hard_reject:
+            max_nan_fraction: 0.1
+            max_dropped_frame_rate: 0.25
+            min_steps: 20
+        robot:
+          name: franka_panda_teleop
+          n_joints: 7
+          control_hz: 20.0
+          joint_lower:
+          - -2.8973
+          - -1.7628
+          - -2.8973
+          - -3.0718
+          - -2.8973
+          - -0.0175
+          - -2.8973
+          joint_upper:
+          - 2.8973
+          - 1.7628
+          - 2.8973
+          - -0.0698
+          - 2.8973
+          - 3.7525
+          - 2.8973
+          action_limit: 0.08
+    outs:
+    - path: reports/quality.json
+      hash: md5
+      md5: 59421853b496e173cb8ff9a4850574a4
+      size: 504249
+    - path: reports/quality_summary.json
+      hash: md5
+      md5: c7ddfcbedaa4a789a0fb3653a57896e6
+      size: 549
+  dataset:
+    cmd: python -m erl_teleop.cli dataset
+    deps:
+    - path: data/interim/episodes
+      hash: md5
+      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
+      size: 10343502
+      nfiles: 627
+    - path: reports/quality.json
+      hash: md5
+      md5: 59421853b496e173cb8ff9a4850574a4
+      size: 504249
+    - path: reports/validation.json
+      hash: md5
+      md5: 3248aa497b74a99a67349214744985c2
+      size: 44370
+    - path: src/erl_teleop/dataset.py
+      hash: md5
+      md5: 39f47adbb9e6b3ffd7f5645f7a5e38c0
+      size: 11716
+    params:
+      params.yaml:
+        dataset:
+          out_dir: data/processed
+          min_tier: silver
+          require_success: true
+          val_fraction: 0.2
+          split_on: session_id
+          seed: 17
+          obs_keys:
+          - q
+          - dq
+          - ee_pos
+          - ee_quat
+          - grip
+          - prev_act_q
+          - prev_act_grip
+          action_keys:
+          - act_q
+          - act_grip
+        robot:
+          name: franka_panda_teleop
+          n_joints: 7
+          control_hz: 20.0
+          joint_lower:
+          - -2.8973
+          - -1.7628
+          - -2.8973
+          - -3.0718
+          - -2.8973
+          - -0.0175
+          - -2.8973
+          joint_upper:
+          - 2.8973
+          - 1.7628
+          - 2.8973
+          - -0.0698
+          - 2.8973
+          - 3.7525
+          - 2.8973
+          action_limit: 0.08
+    outs:
+    - path: data/processed
+      hash: md5
+      md5: 1cb6fb85d58c46ec145b1b7c5238f959.dir
+      size: 6233736
+      nfiles: 3
+  train:
+    cmd: python -m erl_teleop.cli train
+    deps:
+    - path: data/processed
+      hash: md5
+      md5: 1cb6fb85d58c46ec145b1b7c5238f959.dir
+      size: 6233736
+      nfiles: 3
+    - path: src/erl_teleop/train.py
+      hash: md5
+      md5: 464bb5e9b861c4d63d2a490dc7a7298d
+      size: 15010
+    params:
+      params.yaml:
+        tracking:
+          backend: mlflow
+          uri: file:./mlruns
+          experiment: erl-teleop-bc
+        train:
+          seed: 17
+          hidden_sizes:
+          - 256
+          - 256
+          dropout: 0.05
+          lr: 0.0003
+          weight_decay: 0.0001
+          batch_size: 256
+          epochs: 80
+          action_horizon: 8
+          early_stop_patience: 15
+          device: auto
+    outs:
+    - path: artifacts/history.json
+      hash: md5
+      md5: 6f88379f3ba04c1ef095366d2c270897
+      size: 3476
+    - path: artifacts/lineage.json
+      hash: md5
+      md5: b95b12541e8a2bf55374fd8c921a946d
+      size: 2090
+    - path: artifacts/policy.pt
+      hash: md5
+      md5: 3188b2840f4fad4971f2ddb3664942e0
+      size: 370677
+    - path: artifacts/train_summary.json
+      hash: md5
+      md5: 73efc1a4a13ab700d5ebd914ddeb65a5
+      size: 134
+  evaluate:
+    cmd: python -m erl_teleop.cli eval --split val
+    deps:
+    - path: artifacts/policy.pt
+      hash: md5
+      md5: 3188b2840f4fad4971f2ddb3664942e0
+      size: 370677
+    - path: data/processed
+      hash: md5
+      md5: 1cb6fb85d58c46ec145b1b7c5238f959.dir
+      size: 6233736
+      nfiles: 3
+    - path: src/erl_teleop/evaluate.py
+      hash: md5
+      md5: d7d44e2c49ec9552ceb40e56732d9d92
+      size: 14569
+    params:
+      params.yaml:
+        evaluate:
+          rollout_horizons:
+          - 1
+          - 8
+          - 32
+          bootstrap_samples: 1000
+          bootstrap_seed: 17
+    outs:
+    - path: reports/eval_val.json
+      hash: md5
+      md5: 3b748539d5250568b1613f856d4daffe
+      size: 2743
+    - path: reports/eval_val_metrics.json
+      hash: md5
+      md5: a3e79b330c8373a3a5d3d87d3f2945a3
+      size: 511
+  report:
+    cmd: python -m erl_teleop.cli report
+    deps:
+    - path: reports/quality.json
+      hash: md5
+      md5: 59421853b496e173cb8ff9a4850574a4
+      size: 504249
+    - path: reports/validation.json
+      hash: md5
+      md5: 3248aa497b74a99a67349214744985c2
+      size: 44370
+    - path: src/erl_teleop/report.py
+      hash: md5
+      md5: a1deaf5bd182dd57ca560a4574173904
+      size: 6309
+    outs:
+    - path: reports/data_quality.md
+      hash: md5
+      md5: c48d65463a25132e58b85b4dbaff4e4a
+      size: 3390
