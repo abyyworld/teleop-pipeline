@@ -47,8 +47,8 @@ stages:
       nfiles: 337
     - path: src/erl_teleop/ingest.py
       hash: md5
-      md5: db09db78d993fd4079d2ff327779a8b2
-      size: 11473
+      md5: 083f90436ea7662a2fc2ac6602da0576
+      size: 14471
     - path: src/erl_teleop/io.py
       hash: md5
       md5: 89b91b6ae2e9dd58bcb8541db9616eca
@@ -89,16 +89,16 @@ stages:
     outs:
     - path: data/interim/episodes
       hash: md5
-      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
-      size: 10343502
+      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
+      size: 10343516
       nfiles: 627
   validate:
     cmd: python -m erl_teleop.cli validate --no-quarantine
     deps:
     - path: data/interim/episodes
       hash: md5
-      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
-      size: 10343502
+      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
+      size: 10343516
       nfiles: 627
     - path: src/erl_teleop/validate.py
       hash: md5
@@ -142,8 +142,8 @@ stages:
     deps:
     - path: data/interim/episodes
       hash: md5
-      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
-      size: 10343502
+      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
+      size: 10343516
       nfiles: 627
     - path: src/erl_teleop/quality.py
       hash: md5
@@ -242,8 +242,8 @@ stages:
     deps:
     - path: data/interim/episodes
       hash: md5
-      md5: ab01a86bbd4eb37b0a82dfa5da1199a6.dir
-      size: 10343502
+      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
+      size: 10343516
       nfiles: 627
     - path: reports/quality.json
       hash: md5
@@ -301,7 +301,7 @@ stages:
     outs:
     - path: data/processed
       hash: md5
-      md5: 1cb6fb85d58c46ec145b1b7c5238f959.dir
+      md5: 926f69880e0c35a0d9e2041aff584467.dir
       size: 6233736
       nfiles: 3
   train:
@@ -309,7 +309,7 @@ stages:
     deps:
     - path: data/processed
       hash: md5
-      md5: 1cb6fb85d58c46ec145b1b7c5238f959.dir
+      md5: 926f69880e0c35a0d9e2041aff584467.dir
       size: 6233736
       nfiles: 3
     - path: src/erl_teleop/train.py
@@ -342,8 +342,8 @@ stages:
       size: 3476
     - path: artifacts/lineage.json
       hash: md5
-      md5: b95b12541e8a2bf55374fd8c921a946d
-      size: 2090
+      md5: 0e6039ec878fb67232b4157061d11007
+      size: 2136
     - path: artifacts/policy.pt
       hash: md5
       md5: 3188b2840f4fad4971f2ddb3664942e0
@@ -361,7 +361,7 @@ stages:
       size: 370677
     - path: data/processed
       hash: md5
-      md5: 1cb6fb85d58c46ec145b1b7c5238f959.dir
+      md5: 926f69880e0c35a0d9e2041aff584467.dir
       size: 6233736
       nfiles: 3
     - path: src/erl_teleop/evaluate.py

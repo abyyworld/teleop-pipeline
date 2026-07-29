@@ -19,6 +19,7 @@ Two things happen here that are easy to skip and expensive to skip:
 from __future__ import annotations
 
 import re
+import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -76,12 +77,17 @@ class IngestResult:
     episodes: int = 0
     skipped: list[tuple[str, str]] = field(default_factory=list)  # (path, reason)
     interpolated_fraction: dict[str, float] = field(default_factory=dict)
+    # Stored sessions removed because their raw source no longer exists.
+    pruned: list[str] = field(default_factory=list)
 
     def summary(self) -> str:
-        return (
+        text = (
             f"{self.episodes} episode(s) from {self.sessions} session(s); "
             f"{len(self.skipped)} skipped"
         )
+        if self.pruned:
+            text += f"; {len(self.pruned)} orphaned session(s) pruned"
+        return text
 
 
 def canonicalise_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -287,9 +293,69 @@ def ingest_session(cfg: Config, session_dir: Path, out_root: Path) -> tuple[int,
     return n_written, interp_fractions
 
 
+def _raw_session_ids(raw_root: Path) -> set[str]:
+    """Everything the store is still allowed to hold, given the raw dump.
+
+    Two sources, deliberately unioned:
+
+    * the declared `session_id` from each readable `session.json` — the real
+      key, since `ingest_session` writes the store under the declared id and it
+      need not match the directory name;
+    * the *directory name* of every raw session directory, readable or not.
+
+    The second is what makes pruning safe. If a session's metadata is missing or
+    corrupt, its id cannot be determined — and treating "I cannot read this" as
+    "this no longer exists" would delete good episodes because a JSON file got
+    truncated. Pruning must only fire when the raw source has genuinely
+    vanished, so a directory that is still on disk always protects a store entry
+    of the same name.
+    """
+    ids: set[str] = set()
+    for session_dir in sorted(p for p in raw_root.iterdir() if p.is_dir()):
+        ids.add(session_dir.name)
+        meta_path = session_dir / "session.json"
+        if not meta_path.exists():
+            continue
+        try:
+            ids.add(SessionMeta.model_validate_json(meta_path.read_text()).session_id)
+        except (ValueError, OSError):
+            continue
+    return ids
+
+
+def prune_orphans(out_root: Path, keep: set[str]) -> list[str]:
+    """Delete stored sessions whose raw source is gone. Returns what was removed."""
+    removed: list[str] = []
+    for stored in sorted(p for p in out_root.iterdir() if p.is_dir()):
+        if stored.name not in keep:
+            shutil.rmtree(stored)
+            removed.append(stored.name)
+    return removed
+
+
 def ingest_all(
-    cfg: Config, raw_dir: Path | None = None, out_dir: Path | None = None
+    cfg: Config,
+    raw_dir: Path | None = None,
+    out_dir: Path | None = None,
+    prune: bool = True,
 ) -> IngestResult:
+    """Reconcile the canonical episode store with the raw dump.
+
+    Ingestion is a *sync*, not an append. Without the prune step, deleting a raw
+    session leaves its canonical episodes in the store forever — they keep being
+    scored and keep entering training sets, with nothing in any report to say
+    their source is gone. Retractions are routine (a session gets relabelled,
+    an operator withdraws consent, a rig fault is discovered late), and a
+    retraction that does not actually remove the data is the exact failure this
+    pipeline exists to prevent.
+
+    `dvc repro` hides the problem, because DVC clears a stage's outputs before
+    re-running it. Anyone driving the stages directly — which `make pipeline`
+    and the per-stage CLI both do — accumulates orphans silently.
+
+    Pass `prune=False` when deliberately ingesting from a partial raw dump into
+    an existing store.
+    """
     raw_root = Path(raw_dir) if raw_dir else cfg.resolve("ingest.raw_dir")
     out_root = Path(out_dir) if out_dir else cfg.resolve("ingest.episode_dir")
     out_root.mkdir(parents=True, exist_ok=True)
@@ -309,6 +375,9 @@ def ingest_all(
         if interp:
             result.interpolated_fraction[session_dir.name] = float(np.mean(interp))
 
+    if prune:
+        result.pruned = prune_orphans(out_root, _raw_session_ids(raw_root))
+
     (out_root / "_ingest.json").write_text(
         pd.Series(
             {
@@ -316,6 +385,7 @@ def ingest_all(
                 "sessions": result.sessions,
                 "episodes": result.episodes,
                 "skipped": len(result.skipped),
+                "pruned": len(result.pruned),
             }
         ).to_json(indent=2)
     )

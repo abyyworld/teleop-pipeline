@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -143,6 +145,93 @@ def test_non_unit_quaternion_is_a_warning(cfg, clean_episode, episode_meta):
     df["ee_qw"] = 5.0
     report = validate.validate_episode(cfg, episode_meta(df), df)
     assert any(i.code == "quaternion_not_unit" for i in report.warnings)
+
+
+# -- store reconciliation ---------------------------------------------------
+
+
+def _tiny_corpus(tmp_path, cfg, n_sessions=3):
+    """A small raw dump plus a config pointed at it."""
+    import shutil
+
+    from erl_teleop.config import load_config
+    from erl_teleop.synthetic import generate
+
+    shutil.copy(cfg.path, tmp_path / "params.yaml")
+    local = load_config(tmp_path / "params.yaml")
+    generate(local, local.resolve("ingest.raw_dir"), n_sessions=n_sessions, seed=5)
+    return local
+
+
+def test_deleting_a_raw_session_removes_it_from_the_store(tmp_path, cfg):
+    """A retracted session must actually disappear.
+
+    Ingestion is a sync, not an append. Without this, deleting a raw session
+    leaves its canonical episodes behind to be scored and trained on forever,
+    with nothing in any report saying the source is gone.
+    """
+    from erl_teleop.ingest import ingest_all
+    from erl_teleop.io import iter_episode_metas
+
+    local = _tiny_corpus(tmp_path, cfg)
+    raw_root = local.resolve("ingest.raw_dir")
+    store = local.resolve("ingest.episode_dir")
+
+    first = ingest_all(local)
+    assert first.sessions == 3
+    assert first.pruned == []
+
+    victim = sorted(p for p in raw_root.iterdir() if p.is_dir())[0]
+    victim_id = victim.name
+    shutil.rmtree(victim)
+
+    second = ingest_all(local)
+    assert second.sessions == 2
+    assert second.pruned == [victim_id]
+    assert not (store / victim_id).exists()
+
+    remaining = {m.session_id for m in iter_episode_metas(store)}
+    assert victim_id not in remaining
+    assert len(remaining) == 2
+
+
+def test_prune_can_be_disabled(tmp_path, cfg):
+    """Ingesting from a partial dump into an existing store must stay possible."""
+    from erl_teleop.ingest import ingest_all
+
+    local = _tiny_corpus(tmp_path, cfg)
+    raw_root = local.resolve("ingest.raw_dir")
+    store = local.resolve("ingest.episode_dir")
+
+    ingest_all(local)
+    victim = sorted(p for p in raw_root.iterdir() if p.is_dir())[0]
+    shutil.rmtree(victim)
+
+    result = ingest_all(local, prune=False)
+    assert result.pruned == []
+    assert (store / victim.name).exists()
+
+
+def test_unreadable_session_metadata_does_not_trigger_pruning(tmp_path, cfg):
+    """A corrupt session.json is a skip, not a licence to delete its data."""
+    from erl_teleop.ingest import ingest_all
+
+    local = _tiny_corpus(tmp_path, cfg)
+    raw_root = local.resolve("ingest.raw_dir")
+    store = local.resolve("ingest.episode_dir")
+
+    ingest_all(local)
+    victim = sorted(p for p in raw_root.iterdir() if p.is_dir())[0]
+    (victim / "session.json").write_text("{ not valid json")
+
+    result = ingest_all(local)
+
+    # The session can no longer be ingested...
+    assert any(victim.name in path for path, _ in result.skipped)
+    # ...but its directory is still on disk, so its data must survive.
+    # "I cannot read this" is not "this no longer exists".
+    assert (store / victim.name).exists(), "corrupt metadata deleted good data"
+    assert result.pruned == []
 
 
 def test_schema_column_order_is_stable(cfg):

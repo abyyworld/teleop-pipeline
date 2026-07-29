@@ -58,15 +58,26 @@ def synth(
 
 
 @app.command()
-def ingest(params: str = ParamsOpt) -> None:
+def ingest(
+    params: str = ParamsOpt,
+    prune: bool = typer.Option(
+        True,
+        "--prune/--no-prune",
+        help="Remove stored sessions whose raw source is gone. On by default: "
+        "ingestion is a sync, so a retracted session actually disappears "
+        "instead of lingering in every future training set.",
+    ),
+) -> None:
     """Normalise raw sessions into the canonical episode store."""
     from .ingest import ingest_all
 
     cfg = _cfg(params)
-    result = ingest_all(cfg)
+    result = ingest_all(cfg, prune=prune)
     console.print(f"[green]ingest[/] {result.summary()}")
     for path, reason in result.skipped:
         console.print(f"  [yellow]skipped[/] {Path(path).name}: {reason}")
+    for session_id in result.pruned:
+        console.print(f"  [magenta]pruned[/] {session_id} (raw source removed)")
     if result.episodes == 0:
         raise typer.Exit(code=1)
 
