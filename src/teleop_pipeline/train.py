@@ -218,7 +218,7 @@ def train(
     with tracker:
         tracker.set_tags(
             {
-                "pipeline": "erl-teleop",
+                "pipeline": "teleop-pipeline",
                 "stage": "train",
                 "dataset_hash": manifest["dataset_hash"],
             }
@@ -276,7 +276,7 @@ def train(
         # The checkpoint carries everything needed to run the policy standalone:
         # weights, the exact normalisation, and the column order. A checkpoint
         # that needs the repo's config to be interpretable is not portable, and
-        # erl-vla-evals loads these without importing this package.
+        # policy-eval-harness loads these without importing this package.
         ckpt_path = out / "policy.pt"
         torch.save(
             {

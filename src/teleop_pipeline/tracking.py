@@ -120,7 +120,7 @@ def make_tracker(cfg, run_name: str, fallback_dir: Path) -> Tracker:
     try:
         return MlflowTracker(
             uri=cfg.tracking_uri,
-            experiment=str(cfg.get("tracking.experiment", "erl-teleop")),
+            experiment=str(cfg.get("tracking.experiment", "teleop-pipeline")),
             run_name=run_name,
         )
     except Exception as exc:  # noqa: BLE001 — degrading is the whole point

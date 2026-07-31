@@ -1,12 +1,12 @@
 schema: '2.0'
 stages:
   synth:
-    cmd: python -m erl_teleop.cli synth --sessions 48 --seed 0
+    cmd: python -m teleop_pipeline.cli synth --sessions 48 --seed 0
     deps:
-    - path: src/erl_teleop/synthetic.py
+    - path: src/teleop_pipeline/synthetic.py
       hash: md5
-      md5: 771f7b20ed3c610a572cbca4d5b89722
-      size: 10866
+      md5: eb80affaa37ca7d3a6e40df6d9107331
+      size: 10876
     params:
       params.yaml:
         ingest.raw_dir: data/raw
@@ -34,26 +34,26 @@ stages:
     outs:
     - path: data/raw
       hash: md5
-      md5: 0cd8c1c5bf6d08af3ad047b3c40b5320.dir
-      size: 23633458
+      md5: 32bdd432cad78fd054ca80e38e0a8645.dir
+      size: 23633698
       nfiles: 337
   ingest:
-    cmd: python -m erl_teleop.cli ingest
+    cmd: python -m teleop_pipeline.cli ingest
     deps:
     - path: data/raw
       hash: md5
-      md5: 0cd8c1c5bf6d08af3ad047b3c40b5320.dir
-      size: 23633458
+      md5: 32bdd432cad78fd054ca80e38e0a8645.dir
+      size: 23633698
       nfiles: 337
-    - path: src/erl_teleop/ingest.py
+    - path: src/teleop_pipeline/ingest.py
       hash: md5
       md5: 083f90436ea7662a2fc2ac6602da0576
       size: 14471
-    - path: src/erl_teleop/io.py
+    - path: src/teleop_pipeline/io.py
       hash: md5
       md5: 89b91b6ae2e9dd58bcb8541db9616eca
       size: 3643
-    - path: src/erl_teleop/schema.py
+    - path: src/teleop_pipeline/schema.py
       hash: md5
       md5: fb029cebe488b6aeb62855eb501ff5d7
       size: 6048
@@ -89,18 +89,18 @@ stages:
     outs:
     - path: data/interim/episodes
       hash: md5
-      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
-      size: 10343516
+      md5: fb24cab14a1739866fc3ce5612e376d3.dir
+      size: 10343756
       nfiles: 627
   validate:
-    cmd: python -m erl_teleop.cli validate --no-quarantine
+    cmd: python -m teleop_pipeline.cli validate --no-quarantine
     deps:
     - path: data/interim/episodes
       hash: md5
-      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
-      size: 10343516
+      md5: fb24cab14a1739866fc3ce5612e376d3.dir
+      size: 10343756
       nfiles: 627
-    - path: src/erl_teleop/validate.py
+    - path: src/teleop_pipeline/validate.py
       hash: md5
       md5: 6684fe6326ba472388c551ee163d51ac
       size: 7715
@@ -138,14 +138,14 @@ stages:
       md5: 3248aa497b74a99a67349214744985c2
       size: 44370
   score:
-    cmd: python -m erl_teleop.cli score
+    cmd: python -m teleop_pipeline.cli score
     deps:
     - path: data/interim/episodes
       hash: md5
-      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
-      size: 10343516
+      md5: fb24cab14a1739866fc3ce5612e376d3.dir
+      size: 10343756
       nfiles: 627
-    - path: src/erl_teleop/quality.py
+    - path: src/teleop_pipeline/quality.py
       hash: md5
       md5: a92abf67fc3ab0cc20b2ebf6aa1b1068
       size: 13557
@@ -238,12 +238,12 @@ stages:
       md5: c7ddfcbedaa4a789a0fb3653a57896e6
       size: 549
   dataset:
-    cmd: python -m erl_teleop.cli dataset
+    cmd: python -m teleop_pipeline.cli dataset
     deps:
     - path: data/interim/episodes
       hash: md5
-      md5: c5163b7f9f21830aa0f275c5a7907adf.dir
-      size: 10343516
+      md5: fb24cab14a1739866fc3ce5612e376d3.dir
+      size: 10343756
       nfiles: 627
     - path: reports/quality.json
       hash: md5
@@ -253,10 +253,10 @@ stages:
       hash: md5
       md5: 3248aa497b74a99a67349214744985c2
       size: 44370
-    - path: src/erl_teleop/dataset.py
+    - path: src/teleop_pipeline/dataset.py
       hash: md5
-      md5: 39f47adbb9e6b3ffd7f5645f7a5e38c0
-      size: 11716
+      md5: abb22c064712df52e8d15b53497b3fd6
+      size: 11721
     params:
       params.yaml:
         dataset:
@@ -301,27 +301,27 @@ stages:
     outs:
     - path: data/processed
       hash: md5
-      md5: 926f69880e0c35a0d9e2041aff584467.dir
+      md5: e99b0f50b16bd1a3651b3a900ecdf948.dir
       size: 6233736
       nfiles: 3
   train:
-    cmd: python -m erl_teleop.cli train
+    cmd: python -m teleop_pipeline.cli train
     deps:
     - path: data/processed
       hash: md5
-      md5: 926f69880e0c35a0d9e2041aff584467.dir
+      md5: e99b0f50b16bd1a3651b3a900ecdf948.dir
       size: 6233736
       nfiles: 3
-    - path: src/erl_teleop/train.py
+    - path: src/teleop_pipeline/train.py
       hash: md5
-      md5: 464bb5e9b861c4d63d2a490dc7a7298d
-      size: 15010
+      md5: 2e98b4a1db35e412128bb523272f862f
+      size: 15021
     params:
       params.yaml:
         tracking:
           backend: mlflow
           uri: file:./mlruns
-          experiment: erl-teleop-bc
+          experiment: teleop-pipeline-bc
         train:
           seed: 17
           hidden_sizes:
@@ -342,8 +342,8 @@ stages:
       size: 3476
     - path: artifacts/lineage.json
       hash: md5
-      md5: 0e6039ec878fb67232b4157061d11007
-      size: 2136
+      md5: f4adb45fb5e54b0b3bd515d2b6d2e9e4
+      size: 2137
     - path: artifacts/policy.pt
       hash: md5
       md5: 3188b2840f4fad4971f2ddb3664942e0
@@ -353,7 +353,7 @@ stages:
       md5: 73efc1a4a13ab700d5ebd914ddeb65a5
       size: 134
   evaluate:
-    cmd: python -m erl_teleop.cli eval --split val
+    cmd: python -m teleop_pipeline.cli eval --split val
     deps:
     - path: artifacts/policy.pt
       hash: md5
@@ -361,13 +361,13 @@ stages:
       size: 370677
     - path: data/processed
       hash: md5
-      md5: 926f69880e0c35a0d9e2041aff584467.dir
+      md5: e99b0f50b16bd1a3651b3a900ecdf948.dir
       size: 6233736
       nfiles: 3
-    - path: src/erl_teleop/evaluate.py
+    - path: src/teleop_pipeline/evaluate.py
       hash: md5
-      md5: d7d44e2c49ec9552ceb40e56732d9d92
-      size: 14569
+      md5: 6be56b4810a89531ac1c4eb1b9665f08
+      size: 14575
     params:
       params.yaml:
         evaluate:
@@ -380,14 +380,14 @@ stages:
     outs:
     - path: reports/eval_val.json
       hash: md5
-      md5: 3b748539d5250568b1613f856d4daffe
-      size: 2743
+      md5: d6d5f1e05d3b8bac28848b4c258115fb
+      size: 2744
     - path: reports/eval_val_metrics.json
       hash: md5
       md5: a3e79b330c8373a3a5d3d87d3f2945a3
       size: 511
   report:
-    cmd: python -m erl_teleop.cli report
+    cmd: python -m teleop_pipeline.cli report
     deps:
     - path: reports/quality.json
       hash: md5
@@ -397,12 +397,12 @@ stages:
       hash: md5
       md5: 3248aa497b74a99a67349214744985c2
       size: 44370
-    - path: src/erl_teleop/report.py
+    - path: src/teleop_pipeline/report.py
       hash: md5
       md5: a1deaf5bd182dd57ca560a4574173904
       size: 6309
     outs:
     - path: reports/data_quality.md
       hash: md5
-      md5: c48d65463a25132e58b85b4dbaff4e4a
+      md5: ec692923cfe6a27a1c6ea8702ec20f8d
       size: 3390

@@ -66,11 +66,11 @@ except ImportError:  # pragma: no cover - exercised only without the extra
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from erl_teleop.config import Config, load_config  # noqa: E402
-from erl_teleop.ingest import IngestError, ingest_session  # noqa: E402
-from erl_teleop.io import iter_episodes  # noqa: E402
-from erl_teleop.quality import score_episode  # noqa: E402
-from erl_teleop.validate import validate_episode  # noqa: E402
+from teleop_pipeline.config import Config, load_config  # noqa: E402
+from teleop_pipeline.ingest import IngestError, ingest_session  # noqa: E402
+from teleop_pipeline.io import iter_episodes  # noqa: E402
+from teleop_pipeline.quality import score_episode  # noqa: E402
+from teleop_pipeline.validate import validate_episode  # noqa: E402
 
 STATE_FILE = ".ingest_state.json"
 

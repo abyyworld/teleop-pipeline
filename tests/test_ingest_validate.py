@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from erl_teleop import ingest, validate
-from erl_teleop.schema import joint_cols, timeseries_columns
+from teleop_pipeline import ingest, validate
+from teleop_pipeline.schema import joint_cols, timeseries_columns
 
 # -- column aliasing --------------------------------------------------------
 
@@ -154,8 +154,8 @@ def _tiny_corpus(tmp_path, cfg, n_sessions=3):
     """A small raw dump plus a config pointed at it."""
     import shutil
 
-    from erl_teleop.config import load_config
-    from erl_teleop.synthetic import generate
+    from teleop_pipeline.config import load_config
+    from teleop_pipeline.synthetic import generate
 
     shutil.copy(cfg.path, tmp_path / "params.yaml")
     local = load_config(tmp_path / "params.yaml")
@@ -170,8 +170,8 @@ def test_deleting_a_raw_session_removes_it_from_the_store(tmp_path, cfg):
     leaves its canonical episodes behind to be scored and trained on forever,
     with nothing in any report saying the source is gone.
     """
-    from erl_teleop.ingest import ingest_all
-    from erl_teleop.io import iter_episode_metas
+    from teleop_pipeline.ingest import ingest_all
+    from teleop_pipeline.io import iter_episode_metas
 
     local = _tiny_corpus(tmp_path, cfg)
     raw_root = local.resolve("ingest.raw_dir")
@@ -197,7 +197,7 @@ def test_deleting_a_raw_session_removes_it_from_the_store(tmp_path, cfg):
 
 def test_prune_can_be_disabled(tmp_path, cfg):
     """Ingesting from a partial dump into an existing store must stay possible."""
-    from erl_teleop.ingest import ingest_all
+    from teleop_pipeline.ingest import ingest_all
 
     local = _tiny_corpus(tmp_path, cfg)
     raw_root = local.resolve("ingest.raw_dir")
@@ -214,7 +214,7 @@ def test_prune_can_be_disabled(tmp_path, cfg):
 
 def test_unreadable_session_metadata_does_not_trigger_pruning(tmp_path, cfg):
     """A corrupt session.json is a skip, not a licence to delete its data."""
-    from erl_teleop.ingest import ingest_all
+    from teleop_pipeline.ingest import ingest_all
 
     local = _tiny_corpus(tmp_path, cfg)
     raw_root = local.resolve("ingest.raw_dir")

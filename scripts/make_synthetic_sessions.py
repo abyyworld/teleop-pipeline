@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Standalone entry point for the synthetic session generator.
 
-Equivalent to `erl-teleop synth`; kept as a script so the generator can be run
+Equivalent to `teleop-pipeline synth`; kept as a script so the generator can be run
 against an arbitrary params file without installing the package.
 """
 
@@ -13,8 +13,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from erl_teleop.config import load_config  # noqa: E402
-from erl_teleop.synthetic import generate  # noqa: E402
+from teleop_pipeline.config import load_config  # noqa: E402
+from teleop_pipeline.synthetic import generate  # noqa: E402
 
 
 def main() -> int:

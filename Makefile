@@ -51,14 +51,14 @@ repro-force: ## Rebuild every stage, ignoring the cache
 
 .PHONY: pipeline
 pipeline: ## Run every stage directly, without DVC
-	$(BIN)/erl-teleop synth --sessions 48 --seed 0
-	$(BIN)/erl-teleop ingest
-	$(BIN)/erl-teleop validate
-	$(BIN)/erl-teleop score
-	$(BIN)/erl-teleop dataset
-	$(BIN)/erl-teleop train
-	$(BIN)/erl-teleop eval
-	$(BIN)/erl-teleop report
+	$(BIN)/teleop-pipeline synth --sessions 48 --seed 0
+	$(BIN)/teleop-pipeline ingest
+	$(BIN)/teleop-pipeline validate
+	$(BIN)/teleop-pipeline score
+	$(BIN)/teleop-pipeline dataset
+	$(BIN)/teleop-pipeline train
+	$(BIN)/teleop-pipeline eval
+	$(BIN)/teleop-pipeline report
 
 .PHONY: metrics
 metrics: ## Show tracked metrics, and how they changed against HEAD

@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from erl_teleop import dataset
-from erl_teleop.schema import action_columns, observation_columns
+from teleop_pipeline import dataset
+from teleop_pipeline.schema import action_columns, observation_columns
 
 
 def test_split_is_grouped_by_session():

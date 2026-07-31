@@ -14,13 +14,13 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from erl_teleop.config import load_config
-from erl_teleop.dataset import build_dataset, load_manifest
-from erl_teleop.ingest import ingest_all
-from erl_teleop.quality import score_store, summarise
-from erl_teleop.report import render
-from erl_teleop.synthetic import generate
-from erl_teleop.validate import validate_store
+from teleop_pipeline.config import load_config
+from teleop_pipeline.dataset import build_dataset, load_manifest
+from teleop_pipeline.ingest import ingest_all
+from teleop_pipeline.quality import score_store, summarise
+from teleop_pipeline.report import render
+from teleop_pipeline.synthetic import generate
+from teleop_pipeline.validate import validate_store
 
 torch = pytest.importorskip("torch", reason="training is an optional extra")
 
@@ -80,7 +80,7 @@ def test_quality_recovers_the_generators_operator_ranking(pipeline):
     This is the strongest available evidence that the metrics measure
     demonstration quality rather than noise.
     """
-    from erl_teleop.synthetic import OPERATORS
+    from teleop_pipeline.synthetic import OPERATORS
 
     summary = summarise(pipeline["quality"])
     means = summary["per_operator_mean"]
@@ -118,7 +118,7 @@ def test_rejected_episodes_are_excluded(pipeline):
 
 def test_failed_demos_are_excluded(pipeline):
     """`require_success: true` must actually drop operator-marked failures."""
-    from erl_teleop.io import iter_episode_metas
+    from teleop_pipeline.io import iter_episode_metas
 
     failed = {
         m.episode_id
@@ -160,9 +160,9 @@ def test_report_renders(pipeline):
 
 def test_train_and_eval_round_trip(pipeline):
     """A checkpoint must be loadable and evaluable without params.yaml."""
-    from erl_teleop.evaluate import evaluate
-    from erl_teleop.train import load_policy
-    from erl_teleop.train import train as run_train
+    from teleop_pipeline.evaluate import evaluate
+    from teleop_pipeline.train import load_policy
+    from teleop_pipeline.train import train as run_train
 
     cfg = pipeline["cfg"]
     # Keep the smoke run short; correctness of the plumbing is the point here,

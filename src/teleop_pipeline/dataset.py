@@ -175,7 +175,7 @@ def build_dataset(
 
     if not kept:
         raise RuntimeError(
-            "no episodes passed the dataset filters — run `erl-teleop score` first, "
+            "no episodes passed the dataset filters — run `teleop-pipeline score` first, "
             "or relax dataset.min_tier in params.yaml"
         )
 

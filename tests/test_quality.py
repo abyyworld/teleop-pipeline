@@ -10,8 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from erl_teleop import quality
-from erl_teleop.schema import joint_cols
+from teleop_pipeline import quality
+from teleop_pipeline.schema import joint_cols
 
 
 def test_clean_episode_scores_gold(cfg, clean_episode, episode_meta):

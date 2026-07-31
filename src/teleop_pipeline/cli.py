@@ -34,7 +34,7 @@ def _cfg(params: str | None):
 @app.command()
 def version() -> None:
     """Print the package version."""
-    console.print(f"erl-teleop {__version__}")
+    console.print(f"teleop-pipeline {__version__}")
 
 
 @app.command()
@@ -136,7 +136,7 @@ def score(
     cfg = _cfg(params)
     reports = score_store(cfg, write_back=write_back)
     if not reports:
-        console.print("[red]no episodes to score[/] — run `erl-teleop ingest` first")
+        console.print("[red]no episodes to score[/] — run `teleop-pipeline ingest` first")
         raise typer.Exit(code=1)
 
     path = cfg.root / out
@@ -270,7 +270,7 @@ def report(
     cfg = _cfg(params)
     quality_path = cfg.root / "reports" / "quality.json"
     if not quality_path.exists():
-        console.print("[red]no quality report[/] — run `erl-teleop score` first")
+        console.print("[red]no quality report[/] — run `teleop-pipeline score` first")
         raise typer.Exit(code=1)
 
     quality = [QualityReport.model_validate(r) for r in json.loads(quality_path.read_text())]
@@ -301,7 +301,7 @@ def lineage(
     else:
         candidates = sorted(runs_dir.glob("*/lineage.json"), key=lambda p: p.stat().st_mtime)
         if not candidates:
-            console.print("[red]no runs found[/] — run `erl-teleop train` first")
+            console.print("[red]no runs found[/] — run `teleop-pipeline train` first")
             raise typer.Exit(code=1)
         path = candidates[-1]
 

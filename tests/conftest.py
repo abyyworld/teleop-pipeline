@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from erl_teleop.config import Config, load_config
-from erl_teleop.schema import EpisodeMeta, timeseries_columns
+from teleop_pipeline.config import Config, load_config
+from teleop_pipeline.schema import EpisodeMeta, timeseries_columns
 
 
 @pytest.fixture(scope="session")

@@ -1,4 +1,4 @@
-"""erl-teleop — versioned, validated, reproducible teleoperation data pipeline."""
+"""teleop-pipeline — versioned, validated, reproducible teleoperation data pipeline."""
 
 from __future__ import annotations
 

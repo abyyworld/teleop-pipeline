@@ -1,4 +1,4 @@
-# erl-teleop-pipeline
+# teleop-data-pipeline
 
 **Versioned, validated, reproducible teleoperation data for robot policy learning.**
 
@@ -9,8 +9,8 @@ quality-scored corpus comes out, and every trained policy can be traced back to
 the exact bytes it was trained on.
 
 ```bash
-git clone https://github.com/abyyworld/erl-teleop-pipeline
-cd erl-teleop-pipeline
+git clone https://github.com/abyyworld/teleop-data-pipeline
+cd teleop-data-pipeline
 make install-all
 make repro         # synthetic sessions -> corpus -> dataset -> policy -> eval
 ```
@@ -62,7 +62,7 @@ Each box is a DVC stage and a CLI subcommand, so the pipeline and a human at a
 terminal run the same code. No stage writes into another stage's outputs — the
 rule that keeps `dvc repro`'s staleness detection honest.
 
-### 1. Ingest — `erl-teleop ingest`
+### 1. Ingest — `teleop-pipeline ingest`
 
 Normalises whatever the rig produced into one schema. Column aliasing is
 table-driven (`joint_0`, `vel_3`, `timestamp`, `gripper_cmd` → canonical), so
@@ -80,7 +80,7 @@ Raw timing statistics are measured *before* resampling erases them and carried
 forward on the episode record, because jitter is one of the strongest available
 predictors of a bad session.
 
-### 2. Validate — `erl-teleop validate`
+### 2. Validate — `teleop-pipeline validate`
 
 A hard gate: is this a well-formed recording of *this* robot? Monotonic
 timebase, schema completeness, joint limits, unit quaternions, gripper range.
@@ -88,7 +88,7 @@ Errors exclude an episode; warnings do not. A joint-space-only rig with no
 end-effector channel is legitimate and passes with a warning; scattered NaNs
 inside a channel that *is* recorded are corruption and fail.
 
-### 3. Score — `erl-teleop score`
+### 3. Score — `teleop-pipeline score`
 
 The part that does not exist in a folder of CSVs. Nine metrics, each aimed at a
 recognisable way a human driving a leader arm produces unusable data:
@@ -122,7 +122,7 @@ levels. The scorer never sees them, and recovers the ranking exactly:
 That correspondence is asserted in the test suite
 (`test_quality_recovers_the_generators_operator_ranking`), so it stays true.
 
-### 4. Dataset — `erl-teleop dataset`
+### 4. Dataset — `teleop-pipeline dataset`
 
 Three enforced decisions, each corresponding to a way of accidentally inflating
 a validation number:
@@ -141,7 +141,7 @@ incomparable and nothing tells you it happened.
 Output includes a `manifest.json` pinning every episode's content hash, which is
 what `dataset_hash` is derived from and what training runs record.
 
-### 5. Train — `erl-teleop train`
+### 5. Train — `teleop-pipeline train`
 
 A small MLP behaviour-cloning baseline. The point of this repository is the
 infrastructure around the model, and a policy that trains in a minute validates
@@ -156,12 +156,12 @@ and nothing else changes.
 Checkpoints are self-describing — weights, normalisation, column order — so they
 load without this package or its config.
 
-### 6. Evaluate — `erl-teleop eval`
+### 6. Evaluate — `teleop-pipeline eval`
 
 **There is no simulator here.** These are open-loop metrics on held-out
 demonstrations. They catch broken checkpoints, normalisation mismatches and
 regressions between data versions; they do not measure task success. Closed-loop
-benchmarking is [`erl-vla-evals`](https://github.com/abyyworld/erl-vla-evals),
+benchmarking is [`policy-eval-harness`](https://github.com/abyyworld/policy-eval-harness),
 which consumes the checkpoint and lineage emitted here.
 
 - Errors in **physical units** (rad), not normalised — normalised losses are not
@@ -213,7 +213,7 @@ describe what actually ran, and that flag is the difference between
 "reproducible" and "probably reproducible".
 
 ```bash
-erl-teleop lineage       # what produced the latest run, and how to rebuild it
+teleop-pipeline lineage       # what produced the latest run, and how to rebuild it
 dvc metrics diff HEAD~1  # what changed, and by how much
 ```
 
@@ -251,7 +251,7 @@ is a self-inflicted wound.
 ```
 params.yaml              every threshold and hyperparameter, hashed by DVC
 dvc.yaml                 the reproducible DAG
-src/erl_teleop/
+src/teleop_pipeline/
   schema.py              canonical episode format + pydantic records
   ingest.py              raw -> canonical, aliasing, resampling, gap handling
   validate.py            hard structural + physical gate

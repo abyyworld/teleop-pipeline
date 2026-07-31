@@ -9,7 +9,7 @@ rebuild it and that are otherwise the four things nobody writes down:
 * the **checkpoint hash**, so a model file found later can be traced back
 
 This file is also the contract with the downstream evaluation repo
-(``erl-vla-evals``), which registers checkpoints by reading it.
+(``policy-eval-harness``), which registers checkpoints by reading it.
 """
 
 from __future__ import annotations
