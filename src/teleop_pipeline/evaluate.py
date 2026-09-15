@@ -5,7 +5,7 @@ here measures task success. These are open-loop metrics on held-out
 demonstrations. They are useful — they catch a broken checkpoint, a
 normalisation mismatch, or a regression between data versions — and they are not
 a substitute for closed-loop evaluation. Closed-loop benchmarking lives in
-``policy-eval-harness``, which consumes the checkpoint and lineage this stage emits.
+``vla-evals``, which consumes the checkpoint and lineage this stage emits.
 
 What is measured:
 

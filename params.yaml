@@ -104,7 +104,7 @@ train:
 
 evaluate:
   # Open-loop N-step prediction error. No simulator in this repo — closed-loop
-  # benchmarking lives in policy-eval-harness, which consumes the checkpoint + lineage
+  # benchmarking lives in vla-evals, which consumes the checkpoint + lineage
   # emitted here.
   rollout_horizons: [1, 8, 32]
   bootstrap_samples: 1000

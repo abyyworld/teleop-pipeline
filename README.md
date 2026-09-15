@@ -1,4 +1,4 @@
-# teleop-data-pipeline
+# teleop-pipeline
 
 **Versioned, validated, reproducible teleoperation data for robot policy learning.**
 
@@ -9,8 +9,8 @@ quality-scored corpus comes out, and every trained policy can be traced back to
 the exact bytes it was trained on.
 
 ```bash
-git clone https://github.com/abyyworld/teleop-data-pipeline
-cd teleop-data-pipeline
+git clone https://github.com/abyyworld/teleop-pipeline
+cd teleop-pipeline
 make install-all
 make repro         # synthetic sessions -> corpus -> dataset -> policy -> eval
 ```
@@ -161,7 +161,7 @@ load without this package or its config.
 **There is no simulator here.** These are open-loop metrics on held-out
 demonstrations. They catch broken checkpoints, normalisation mismatches and
 regressions between data versions; they do not measure task success. Closed-loop
-benchmarking is [`policy-eval-harness`](https://github.com/abyyworld/policy-eval-harness),
+benchmarking is [`vla-evals`](https://github.com/abyyworld/vla-evals),
 which consumes the checkpoint and lineage emitted here.
 
 - Errors in **physical units** (rad), not normalised — normalised losses are not
