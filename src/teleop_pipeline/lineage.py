@@ -118,12 +118,12 @@ class Lineage:
     def write(self, path: Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(asdict(self), indent=2, default=str))
+        path.write_text(json.dumps(asdict(self), indent=2, default=str), encoding="utf-8")
         return path
 
     @staticmethod
     def read(path: Path) -> dict:
-        return json.loads(Path(path).read_text())
+        return json.loads(Path(path).read_text(encoding="utf-8"))
 
     def reproduction_command(self) -> str:
         commit = (self.git or {}).get("commit") or "<commit>"

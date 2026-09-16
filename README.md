@@ -15,6 +15,19 @@ make install-all
 make repro         # synthetic sessions -> corpus -> dataset -> policy -> eval
 ```
 
+The `make` targets are thin wrappers and assume a Unix shell. macOS needs
+nothing extra. On Windows there is no `make`, so call the same entry points
+directly:
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\python -m pip install -U pip
+.venv\Scripts\pip install -e ".[dev,all]"
+.venv\Scripts\dvc repro
+```
+
+Tested on Linux, macOS and Windows in CI.
+
 That runs the entire pipeline on generated data, so the repository is assessable
 without access to a lab's demonstrations. Point `ingest.raw_dir` at a real teleop
 dump and delete the `synth` stage to use it for real.

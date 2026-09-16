@@ -105,7 +105,7 @@ def validate(
 
     path = cfg.root / out
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps([r.model_dump() for r in reports], indent=2))
+    path.write_text(json.dumps([r.model_dump() for r in reports], indent=2), encoding="utf-8")
 
     console.print(
         f"[green]validate[/] {len(reports)} episode(s): "
@@ -141,10 +141,12 @@ def score(
 
     path = cfg.root / out
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps([r.model_dump() for r in reports], indent=2))
+    path.write_text(json.dumps([r.model_dump() for r in reports], indent=2), encoding="utf-8")
 
     summary = summarise(reports)
-    (path.parent / "quality_summary.json").write_text(json.dumps(summary, indent=2))
+    (path.parent / "quality_summary.json").write_text(
+        json.dumps(summary, indent=2), encoding="utf-8"
+    )
 
     table = Table(title=f"Quality — {summary['n_episodes']} episodes")
     table.add_column("tier")
@@ -273,13 +275,17 @@ def report(
         console.print("[red]no quality report[/] — run `teleop-pipeline score` first")
         raise typer.Exit(code=1)
 
-    quality = [QualityReport.model_validate(r) for r in json.loads(quality_path.read_text())]
+    quality = [
+        QualityReport.model_validate(r)
+        for r in json.loads(quality_path.read_text(encoding="utf-8"))
+    ]
 
     validation = None
     validation_path = cfg.root / "reports" / "validation.json"
     if validation_path.exists():
         validation = [
-            ValidationReport.model_validate(r) for r in json.loads(validation_path.read_text())
+            ValidationReport.model_validate(r)
+            for r in json.loads(validation_path.read_text(encoding="utf-8"))
         ]
 
     path = report_mod.write(cfg.root / out, report_mod.render(quality, validation))
@@ -327,7 +333,7 @@ def lineage(
 def _latest_checkpoint(cfg) -> Path:
     latest = cfg.root / "artifacts" / "latest_run.json"
     if latest.exists():
-        return Path(json.loads(latest.read_text())["checkpoint"])
+        return Path(json.loads(latest.read_text(encoding="utf-8"))["checkpoint"])
     candidates = sorted((cfg.root / "artifacts").glob("*.pt"), key=lambda p: p.stat().st_mtime)
     if not candidates:
         raise typer.BadParameter("no checkpoint found; pass --checkpoint or run `train` first")

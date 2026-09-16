@@ -101,7 +101,7 @@ def discover_sessions(cfg: Config) -> list[Path]:
     state_path = cfg.root / STATE_FILE
     seen: set[str] = set()
     if state_path.exists():
-        seen = set(json.loads(state_path.read_text()).get("processed", []))
+        seen = set(json.loads(state_path.read_text(encoding="utf-8")).get("processed", []))
 
     candidates = []
     for d in sorted(p for p in raw_root.iterdir() if p.is_dir()):
@@ -178,7 +178,9 @@ def _quarantine(cfg: Config, store_dir: Path, episode_id: str, reason: dict) -> 
         src = store_dir / f"{episode_id}{suffix}"
         if src.exists():
             shutil.move(str(src), str(dest / src.name))
-    (dest / f"{episode_id}.reason.json").write_text(json.dumps(reason, indent=2, default=str))
+    (dest / f"{episode_id}.reason.json").write_text(
+        json.dumps(reason, indent=2, default=str), encoding="utf-8"
+    )
 
 
 @task(name="record-state")
@@ -190,7 +192,7 @@ def record_state(cfg: Config, outcomes: list[SessionOutcome]) -> None:
     missing without anyone noticing.
     """
     state_path = cfg.root / STATE_FILE
-    state = json.loads(state_path.read_text()) if state_path.exists() else {}
+    state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
     processed = set(state.get("processed", []))
     processed |= {o.session_id for o in outcomes if o.error is None}
 
@@ -201,7 +203,8 @@ def record_state(cfg: Config, outcomes: list[SessionOutcome]) -> None:
                 "last_run": datetime.now(timezone.utc).isoformat(),
             },
             indent=2,
-        )
+        ),
+        encoding="utf-8",
     )
 
 
@@ -227,7 +230,7 @@ def write_summary(cfg: Config, outcomes: list[SessionOutcome]) -> dict:
     out = cfg.root / "reports" / "ingest_runs"
     out.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    (out / f"{stamp}.json").write_text(json.dumps(summary, indent=2))
+    (out / f"{stamp}.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
     total = summary["accepted"] + summary["quarantined"] + summary["rejected"]
     if total:

@@ -62,14 +62,14 @@ def load_gate(cfg: Config) -> tuple[dict[str, str], set[str]]:
     tiers: dict[str, str] = {}
     quality_path = reports / "quality.json"
     if quality_path.exists():
-        for row in json.loads(quality_path.read_text()):
+        for row in json.loads(quality_path.read_text(encoding="utf-8")):
             tiers[row["episode_id"]] = row["tier"]
             _SCORES[row["episode_id"]] = float(row["score"])
 
     invalid: set[str] = set()
     validation_path = reports / "validation.json"
     if validation_path.exists():
-        for row in json.loads(validation_path.read_text()):
+        for row in json.loads(validation_path.read_text(encoding="utf-8")):
             if not row.get("ok", True):
                 invalid.add(row["episode_id"])
 
@@ -262,7 +262,7 @@ def build_dataset(
     }
     manifest["dataset_hash"] = dataset_hash(manifest)
 
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest
 
 
@@ -296,4 +296,4 @@ def dataset_hash(manifest: dict) -> str:
 
 def load_manifest(cfg: Config, out_dir: Path | None = None) -> dict:
     out = Path(out_dir) if out_dir else cfg.resolve("dataset.out_dir")
-    return json.loads((out / "manifest.json").read_text())
+    return json.loads((out / "manifest.json").read_text(encoding="utf-8"))

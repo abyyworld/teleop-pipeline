@@ -222,7 +222,7 @@ def test_unreadable_session_metadata_does_not_trigger_pruning(tmp_path, cfg):
 
     ingest_all(local)
     victim = sorted(p for p in raw_root.iterdir() if p.is_dir())[0]
-    (victim / "session.json").write_text("{ not valid json")
+    (victim / "session.json").write_text("{ not valid json", encoding="utf-8")
 
     result = ingest_all(local)
 

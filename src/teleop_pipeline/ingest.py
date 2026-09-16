@@ -225,7 +225,7 @@ def ingest_session(cfg: Config, session_dir: Path, out_root: Path) -> tuple[int,
     if not meta_path.exists():
         raise IngestError(f"{session_dir.name}: no session.json")
 
-    session = SessionMeta.model_validate_json(meta_path.read_text())
+    session = SessionMeta.model_validate_json(meta_path.read_text(encoding="utf-8"))
     if session.n_joints != cfg.n_joints:
         raise IngestError(
             f"{session.session_id}: n_joints={session.n_joints} but params says {cfg.n_joints}"
@@ -317,7 +317,9 @@ def _raw_session_ids(raw_root: Path) -> set[str]:
         if not meta_path.exists():
             continue
         try:
-            ids.add(SessionMeta.model_validate_json(meta_path.read_text()).session_id)
+            ids.add(
+                SessionMeta.model_validate_json(meta_path.read_text(encoding="utf-8")).session_id
+            )
         except (ValueError, OSError):
             continue
     return ids
@@ -387,6 +389,7 @@ def ingest_all(
                 "skipped": len(result.skipped),
                 "pruned": len(result.pruned),
             }
-        ).to_json(indent=2)
+        ).to_json(indent=2),
+        encoding="utf-8",
     )
     return result

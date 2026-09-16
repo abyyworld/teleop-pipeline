@@ -188,13 +188,18 @@ def _quarantine(
         src = src_dir / f"{meta.episode_id}{suffix}"
         if src.exists():
             shutil.move(str(src), str(dest / src.name))
-    (dest / f"{meta.episode_id}.validation.json").write_text(report.model_dump_json(indent=2))
+    (dest / f"{meta.episode_id}.validation.json").write_text(
+        report.model_dump_json(indent=2), encoding="utf-8"
+    )
 
 
 def load_reports(path: Path) -> list[ValidationReport]:
     import json
 
-    return [ValidationReport.model_validate(r) for r in json.loads(Path(path).read_text())]
+    return [
+        ValidationReport.model_validate(r)
+        for r in json.loads(Path(path).read_text(encoding="utf-8"))
+    ]
 
 
 __all__ = [

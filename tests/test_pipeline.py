@@ -38,12 +38,12 @@ def pipeline(tmp_path_factory, cfg):
     validation = validate_store(local, quarantine=False)
     (root / "reports").mkdir(exist_ok=True)
     (root / "reports" / "validation.json").write_text(
-        json.dumps([r.model_dump() for r in validation], indent=2)
+        json.dumps([r.model_dump() for r in validation], indent=2), encoding="utf-8"
     )
 
     quality = score_store(local, write_back=False)
     (root / "reports" / "quality.json").write_text(
-        json.dumps([r.model_dump() for r in quality], indent=2)
+        json.dumps([r.model_dump() for r in quality], indent=2), encoding="utf-8"
     )
 
     manifest = build_dataset(local)
@@ -191,7 +191,9 @@ def test_train_and_eval_round_trip(pipeline):
 
 
 def test_lineage_pins_the_data_version(pipeline):
-    lineage = json.loads((pipeline["root"] / "artifacts" / "lineage.json").read_text())
+    lineage = json.loads(
+        (pipeline["root"] / "artifacts" / "lineage.json").read_text(encoding="utf-8")
+    )
     assert lineage["dataset_hash"] == pipeline["manifest"]["dataset_hash"]
     assert lineage["checkpoint"]["sha256"]
     assert lineage["environment"]["python"]
@@ -204,7 +206,9 @@ def test_rollout_does_not_teacher_force(pipeline):
     policy's own output, drift would stay flat — the bug this guards against
     makes a policy look several times better than it is.
     """
-    report = json.loads((pipeline["root"] / "reports" / "eval_val.json").read_text())
+    report = json.loads(
+        (pipeline["root"] / "reports" / "eval_val.json").read_text(encoding="utf-8")
+    )
     metrics = report["metrics"]
     drifts = [
         metrics[f"rollout_l2@{n}"]

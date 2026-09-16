@@ -324,12 +324,12 @@ def evaluate(
         "metrics": metrics,
     }
     path = out / f"eval_{split}.json"
-    path.write_text(json.dumps(report, indent=2))
+    path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
     # Flat metrics file for `dvc metrics show` / `dvc metrics diff`, which only
     # understands scalars at the top level.
     flat = {
         k: v for k, v in metrics.items() if isinstance(v, int | float) and not isinstance(v, bool)
     }
-    (out / f"eval_{split}_metrics.json").write_text(json.dumps(flat, indent=2))
+    (out / f"eval_{split}_metrics.json").write_text(json.dumps(flat, indent=2), encoding="utf-8")
     return report

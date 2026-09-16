@@ -43,12 +43,14 @@ def file_hash(path: Path, chunk: int = 1 << 20) -> str:
 def write_session_meta(session_dir: Path, meta: SessionMeta) -> Path:
     session_dir.mkdir(parents=True, exist_ok=True)
     path = session_dir / "meta.json"
-    path.write_text(meta.model_dump_json(indent=2))
+    path.write_text(meta.model_dump_json(indent=2), encoding="utf-8")
     return path
 
 
 def read_session_meta(session_dir: Path) -> SessionMeta:
-    return SessionMeta.model_validate_json((Path(session_dir) / "meta.json").read_text())
+    return SessionMeta.model_validate_json(
+        (Path(session_dir) / "meta.json").read_text(encoding="utf-8")
+    )
 
 
 def write_episode(session_dir: Path, meta: EpisodeMeta, df: pd.DataFrame) -> Path:
@@ -56,19 +58,23 @@ def write_episode(session_dir: Path, meta: EpisodeMeta, df: pd.DataFrame) -> Pat
     session_dir.mkdir(parents=True, exist_ok=True)
     data_path = session_dir / f"{meta.episode_id}.parquet"
     df.to_parquet(data_path, index=False, compression="zstd")
-    (session_dir / f"{meta.episode_id}.meta.json").write_text(meta.model_dump_json(indent=2))
+    (session_dir / f"{meta.episode_id}.meta.json").write_text(
+        meta.model_dump_json(indent=2), encoding="utf-8"
+    )
     return data_path
 
 
 def read_episode(session_dir: Path, episode_id: str) -> tuple[EpisodeMeta, pd.DataFrame]:
     session_dir = Path(session_dir)
-    meta = EpisodeMeta.model_validate_json((session_dir / f"{episode_id}.meta.json").read_text())
+    meta = EpisodeMeta.model_validate_json(
+        (session_dir / f"{episode_id}.meta.json").read_text(encoding="utf-8")
+    )
     df = pd.read_parquet(session_dir / f"{episode_id}.parquet")
     return meta, df
 
 
 def read_episode_meta(meta_path: Path) -> EpisodeMeta:
-    return EpisodeMeta.model_validate_json(Path(meta_path).read_text())
+    return EpisodeMeta.model_validate_json(Path(meta_path).read_text(encoding="utf-8"))
 
 
 def iter_episode_metas(episode_root: Path) -> Iterator[EpisodeMeta]:
@@ -89,16 +95,16 @@ def episode_path(episode_root: Path, meta: EpisodeMeta) -> Path:
 
 def update_episode_meta(episode_root: Path, meta: EpisodeMeta) -> Path:
     path = Path(episode_root) / meta.session_id / f"{meta.episode_id}.meta.json"
-    path.write_text(meta.model_dump_json(indent=2))
+    path.write_text(meta.model_dump_json(indent=2), encoding="utf-8")
     return path
 
 
 def write_json(path: Path, payload: object) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, default=str))
+    path.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
     return path
 
 
 def read_json(path: Path) -> dict:
-    return json.loads(Path(path).read_text())
+    return json.loads(Path(path).read_text(encoding="utf-8"))

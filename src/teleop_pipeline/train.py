@@ -329,7 +329,7 @@ def train(
         # pipeline's contract.
         lineage_path = lineage.write(out / "lineage.json")
         lineage.write(out / "runs" / run_name / "lineage.json")
-        (out / "history.json").write_text(json.dumps(history, indent=2))
+        (out / "history.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
         tracker.log_artifact(lineage_path)
 
     summary["lineage"] = str(lineage_path)
@@ -345,9 +345,10 @@ def train(
                 "n_val_windows": len(splits["val"]),
             },
             indent=2,
-        )
+        ),
+        encoding="utf-8",
     )
-    (out / "latest_run.json").write_text(json.dumps(summary, indent=2))
+    (out / "latest_run.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return summary
 
 
