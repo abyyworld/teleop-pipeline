@@ -199,14 +199,19 @@ Every training run writes a `lineage.json`:
 
 ```json
 {
-  "dataset_hash": "233fac37d03f9c45",
+  "run_id": "bc-c9dce30ceefd8b98-1789496131",
+  "dataset_hash": "c9dce30ceefd8b98",
   "git": { "commit": "…", "branch": "main", "dirty": false },
-  "dvc_lock_hash": "…",
-  "checkpoint": { "sha256": "…", "bytes": 1259304 },
+  "dvc_lock_hash": "cf88d35cd4f9455d",
+  "checkpoint": { "sha256": "…", "bytes": 370677 },
   "params": { "train": {…}, "dataset": {…} },
-  "environment": { "python": "3.12.13", "platform": "…" }
+  "environment": { "python": "…", "platform": "…" }
 }
 ```
+
+That is elided from a real run rather than illustrative: `make repro` on a
+clean clone reproduces the same `dataset_hash` and the same checkpoint size,
+because the synthetic sessions are seeded.
 
 `dirty` is recorded deliberately: a dirty tree means the commit does not
 describe what actually ran, and that flag is the difference between
@@ -264,14 +269,14 @@ src/teleop_pipeline/
   report.py              Markdown data-quality report
   synthetic.py           session generator with injected defects
 flows/ingest_flow.py     Prefect operational ingestion
-tests/                   54 tests; each quality metric has a defect-injection test
+tests/                   57 tests; each quality metric has a defect-injection test
 ```
 
 ## Commands
 
 ```bash
 make install-all    # venv + every extra
-make test           # 54 tests
+make test           # 57 tests
 make lint           # ruff
 make repro          # rebuild whatever is stale
 make pipeline       # run every stage directly, without DVC
