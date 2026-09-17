@@ -58,6 +58,75 @@ def synth(
 
 
 @app.command()
+def record(
+    params: str = ParamsOpt,
+    task: str = typer.Option(..., "--task", help="Task identifier, e.g. pick_place_block."),
+    operator: str = typer.Option(..., "--operator", help="Operator identifier."),
+    robot: str = typer.Option("sim_01", "--robot", help="Robot identifier."),
+    device: str = typer.Option("keyboard", help="Input device: keyboard or scripted."),
+    episodes: int = typer.Option(1, help="Episodes to record before stopping."),
+    out: str = typer.Option(None, help="Output directory (default: ingest.raw_dir)."),
+    session_id: str = typer.Option(None, help="Session id (default: derived from the clock)."),
+    notes: str = typer.Option("", help="Free text stored in session.json."),
+) -> None:
+    """Record teleop demonstrations from a live operator.
+
+    Writes the same raw layout any other rig produces, so the recording is
+    ingested, validated, scored and hashed by the existing pipeline rather than
+    a special path for our own data. Follow with `ingest`.
+
+    The simulated arm is the default because it lets the recording path be run
+    and tested with no robot present. Swap it for a real arm by implementing
+    `teleop.arm.Arm`; nothing else in the pipeline changes.
+    """
+    from datetime import datetime, timezone
+
+    from .teleop import KeyboardDevice, ScriptedDevice, SimulatedArm
+    from .teleop.device import HELP
+    from .teleop.recorder import record_episode, scripted_reach, write_session
+
+    cfg = _cfg(params)
+    target = Path(out) if out else cfg.resolve("ingest.raw_dir")
+    started = datetime.now(timezone.utc)
+    sid = session_id or f"sess_{started:%Y%m%dT%H%M%S}_{task}"
+
+    arm = SimulatedArm(cfg)
+    recordings = []
+    for e in range(episodes):
+        if device == "keyboard":
+            dev = KeyboardDevice(cfg.n_joints)
+            console.print(f"[bold]episode {e + 1}/{episodes}[/] — {task}")
+            console.print(HELP)
+        elif device == "scripted":
+            dev = ScriptedDevice(cfg.n_joints, scripted_reach(cfg), steps=60)
+        else:
+            raise typer.BadParameter(f"unknown device {device!r}; use keyboard or scripted")
+        try:
+            rec = record_episode(arm, dev, cfg)
+        finally:
+            dev.close()
+        recordings.append(rec)
+        label = "ok" if rec.success else "fail"
+        late = f", {rec.late_steps} late step(s)" if rec.late_steps else ""
+        console.print(f"  {rec.n_steps} step(s), marked [bold]{label}[/]{late}")
+        if rec.quit_requested:
+            break
+
+    session_dir = write_session(
+        target,
+        recordings,
+        cfg=cfg,
+        session_id=sid,
+        operator_id=operator,
+        robot_id=robot,
+        task_id=task,
+        notes=notes,
+        recorded_at=started,
+    )
+    console.print(f"[green]wrote[/] {len(recordings)} episode(s) -> {session_dir}")
+
+
+@app.command()
 def ingest(
     params: str = ParamsOpt,
     prune: bool = typer.Option(

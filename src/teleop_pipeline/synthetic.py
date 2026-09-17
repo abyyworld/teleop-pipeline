@@ -27,6 +27,7 @@ import numpy as np
 import pandas as pd
 
 from .config import Config
+from .kinematics import ee_position, ee_quaternion
 from .schema import SessionMeta
 
 TASKS = ["pick_place_block", "open_drawer", "stack_cups", "wipe_surface"]
@@ -172,20 +173,9 @@ def _episode(
     act_grip = np.roll(grip, -1)
     act_grip[-1] = grip[-1]
 
-    # -- forward kinematics stand-in ---------------------------------------
-    # Not a real FK chain — a smooth, deterministic function of joint angles is
-    # enough for the pipeline, and a wrong FK would be worse than an honest
-    # placeholder. Real rigs log measured ee pose directly.
-    ee = np.column_stack(
-        [
-            0.30 + 0.25 * np.sin(q[:, 0]) * np.cos(q[:, 1]),
-            0.25 * np.sin(q[:, 1]) * np.sin(q[:, 0]),
-            0.40 + 0.20 * np.cos(q[:, 1] + q[:, 3]),
-        ]
-    )
-    half = 0.5 * q[:, 5]
-    quat = np.column_stack([np.sin(half), np.zeros(n_steps), np.zeros(n_steps), np.cos(half)])
-    quat /= np.linalg.norm(quat, axis=1, keepdims=True)
+    # Shared with the live recorder so the two corpora stay comparable.
+    ee = ee_position(q)
+    quat = ee_quaternion(q)
 
     # -- timing: jitter and dropped frames ---------------------------------
     t = np.arange(n_steps) * dt

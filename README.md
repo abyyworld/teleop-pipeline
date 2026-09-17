@@ -66,14 +66,51 @@ Each has a specific answer here.
 ## Pipeline
 
 ```
-raw sessions ──▶ ingest ──▶ validate ──▶ score ──▶ dataset ──▶ train ──▶ evaluate
-   (CSV)         canonical   hard gate   quality   splits +    policy   baselines +
-                  parquet               tiering    manifest    + lineage  bootstrap CI
+record ──▶ raw sessions ──▶ ingest ──▶ validate ──▶ score ──▶ dataset ──▶ train ──▶ evaluate
+operator      (CSV)         canonical   hard gate   quality   splits +    policy   baselines +
+ + arm                       parquet               tiering    manifest    + lineage  bootstrap CI
 ```
 
-Each box is a DVC stage and a CLI subcommand, so the pipeline and a human at a
-terminal run the same code. No stage writes into another stage's outputs — the
-rule that keeps `dvc repro`'s staleness detection honest.
+`record` is where a raw session comes from when it is yours. Everything to the
+right of it treats a recorded session exactly like a borrowed one.
+
+Every box from `ingest` rightwards is a DVC stage and a CLI subcommand, so the
+pipeline and a human at a terminal run the same code. No stage writes into
+another stage's outputs — the rule that keeps `dvc repro`'s staleness detection
+honest. `record` is a subcommand but not a stage: it needs a human, so it
+cannot be part of a reproducible graph, and its output is an input to one.
+
+### 0. Record — `teleop-pipeline record`
+
+Collect demonstrations from a live operator.
+
+```bash
+teleop-pipeline record --task pick_place_block --operator op_amelia --episodes 5
+```
+
+Drive the arm from the keyboard: `q/a` through `u/j` raise and lower each joint,
+`[` and `]` work the gripper, `.` ends an episode as a success and `,` as a
+failure, `x` stops the session. The operator's own label rides in the filename,
+which is the same convention the rest of the pipeline already reads.
+
+Two decisions in here matter more than the interface:
+
+**It writes raw, not canonical.** The recorder emits the same messy CSV layout
+any other rig produces and stops there. Writing canonical episodes directly
+would skip resampling, alias mapping, gap detection and content hashing — every
+check that makes the corpus worth trusting. Our own data earns no shortcut.
+
+**Timestamps are measured, not assumed.** A teleop loop does not hit its nominal
+rate, and the jitter is information. `ingest` resamples onto an exact grid and
+records how much it had to interpolate; `score` penalises the episodes where
+that was a lot. Writing a tidy `i * dt` grid would fabricate a perfect rig and
+disable that check at the source. Steps that start late are counted and
+reported per episode.
+
+`--device scripted` runs a fixed operator with no keyboard and no robot, which
+is how the recording path is exercised in CI. The default arm is simulated, so
+the command runs on a laptop; swap in real hardware by implementing
+`teleop.arm.Arm`, and nothing downstream changes.
 
 ### 1. Ingest — `teleop-pipeline ingest`
 
@@ -271,6 +308,11 @@ params.yaml              every threshold and hyperparameter, hashed by DVC
 dvc.yaml                 the reproducible DAG
 src/teleop_pipeline/
   schema.py              canonical episode format + pydantic records
+  kinematics.py          placeholder FK, shared so recorded and generated agree
+  teleop/                live collection: operator in, raw session out
+    device.py            keyboard and scripted operators
+    arm.py               simulated arm; the seam a real one plugs into
+    recorder.py          the control loop and the raw-session writer
   ingest.py              raw -> canonical, aliasing, resampling, gap handling
   validate.py            hard structural + physical gate
   quality.py             the nine metrics, scoring and tiering
@@ -282,14 +324,14 @@ src/teleop_pipeline/
   report.py              Markdown data-quality report
   synthetic.py           session generator with injected defects
 flows/ingest_flow.py     Prefect operational ingestion
-tests/                   57 tests; each quality metric has a defect-injection test
+tests/                   72 tests; each quality metric has a defect-injection test
 ```
 
 ## Commands
 
 ```bash
 make install-all    # venv + every extra
-make test           # 57 tests
+make test           # 72 tests
 make lint           # ruff
 make repro          # rebuild whatever is stale
 make pipeline       # run every stage directly, without DVC
