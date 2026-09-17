@@ -63,7 +63,7 @@ jobs:
             pip install torch --index-url https://download.pytorch.org/whl/cpu
           fi
           pip install -e '.[dev]'
-      - run: pytest -q --cov=teleop_pipeline --cov-report=term-missing
+      - run: pytest --cov=teleop_pipeline --cov-report=term-missing
 
   pipeline:
     # The claim this repo makes is "clone it and the whole thing reproduces".
