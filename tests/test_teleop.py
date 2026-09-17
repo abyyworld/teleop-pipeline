@@ -13,6 +13,7 @@ import pytest
 
 from teleop_pipeline.teleop import (
     Command,
+    KeyboardDevice,
     ScriptedDevice,
     SimulatedArm,
     record_episode,
@@ -20,6 +21,7 @@ from teleop_pipeline.teleop import (
     write_session,
 )
 from teleop_pipeline.teleop.arm import GRIPPER_TRAVEL_S
+from teleop_pipeline.teleop.device import END_FAILURE, END_SUCCESS, KEYS, QUIT
 from teleop_pipeline.teleop.recorder import DEADLINE_SLACK
 
 
@@ -259,3 +261,106 @@ def test_recorded_session_ingests(cfg, tmp_path):
     assert len(written) == 3
     frame = pd.read_parquet(written[0])
     assert np.all(np.diff(frame["t"].to_numpy()) > 0)
+
+
+# -- the keyboard the operator actually uses ---------------------------------
+
+
+def _keyboard(cfg, script):
+    """A KeyboardDevice fed a canned key sequence instead of a terminal."""
+    queue = list(script)
+
+    def read_keys() -> str:
+        return queue.pop(0) if queue else ""
+
+    return KeyboardDevice(cfg.n_joints, read_keys=read_keys)
+
+
+def test_each_joint_key_pair_moves_its_own_joint(cfg):
+    for j, pair in enumerate(KEYS[: cfg.n_joints]):
+        up = _keyboard(cfg, [pair[0]]).poll(0.0)
+        down = _keyboard(cfg, [pair[1]]).poll(0.0)
+        assert up.joint_delta[j] > 0, f"{pair[0]} should raise joint {j}"
+        assert down.joint_delta[j] < 0, f"{pair[1]} should lower joint {j}"
+        others = [k for k in range(cfg.n_joints) if k != j]
+        assert np.allclose(up.joint_delta[others], 0.0), f"{pair[0]} moved another joint"
+
+
+def test_no_keypress_is_a_hold_not_a_dropped_step(cfg):
+    """An operator pausing is data, not an absence of data."""
+    cmd = _keyboard(cfg, [""]).poll(0.4)
+    assert np.allclose(cmd.joint_delta, 0.0)
+    assert cmd.grip == 0.4
+    assert cmd.end_episode is False
+
+
+def test_repeated_keys_in_one_step_accumulate(cfg):
+    """Keys buffered between steps all count; the loop owns the timing."""
+    dev = _keyboard(cfg, ["qqq"])
+    cmd = dev.poll(0.0)
+    assert cmd.joint_delta[0] == pytest.approx(3 * dev.step_rad)
+
+
+def test_opposing_keys_in_one_step_cancel(cfg):
+    cmd = _keyboard(cfg, ["qa"]).poll(0.0)
+    assert cmd.joint_delta[0] == pytest.approx(0.0)
+
+
+def test_gripper_keys_move_and_clamp(cfg):
+    opened = _keyboard(cfg, ["]"]).poll(0.5)
+    closed = _keyboard(cfg, ["["]).poll(0.5)
+    assert opened.grip > 0.5
+    assert closed.grip < 0.5
+    assert _keyboard(cfg, ["]" * 50]).poll(0.5).grip == pytest.approx(1.0)
+    assert _keyboard(cfg, ["[" * 50]).poll(0.5).grip == pytest.approx(0.0)
+
+
+def test_end_keys_carry_the_operators_own_label(cfg):
+    ok = _keyboard(cfg, [END_SUCCESS]).poll(0.0)
+    bad = _keyboard(cfg, [END_FAILURE]).poll(0.0)
+    assert (ok.end_episode, ok.success) == (True, True)
+    assert (bad.end_episode, bad.success) == (True, False)
+
+
+def test_quit_ends_the_episode_too(cfg):
+    """Quitting mid-episode must not leave the loop running on a dead device."""
+    cmd = _keyboard(cfg, [QUIT]).poll(0.0)
+    assert cmd.quit is True
+    assert cmd.end_episode is True
+
+
+def test_an_end_key_wins_over_motion_buffered_behind_it(cfg):
+    """Keys after the end marker belong to the next episode, not this one."""
+    cmd = _keyboard(cfg, [f"q{END_SUCCESS}w"]).poll(0.0)
+    assert cmd.end_episode is True
+    assert cmd.success is True
+    # Decoding stops at the marker: 'q' before it is still decoded, 'w' after it
+    # is not. The recorder then breaks on end_episode and drops this last
+    # partial step, so ending an episode cannot smear a stray keypress into the
+    # demonstration.
+    assert cmd.joint_delta[0] > 0
+    assert cmd.joint_delta[1] == pytest.approx(0.0)
+
+
+def test_unknown_keys_are_ignored(cfg):
+    cmd = _keyboard(cfg, ["ZZ!5\n"]).poll(0.25)
+    assert np.allclose(cmd.joint_delta, 0.0)
+    assert cmd.grip == 0.25
+
+
+def test_a_rig_wider_than_the_layout_is_refused(cfg):
+    with pytest.raises(ValueError, match="keyboard layout"):
+        KeyboardDevice(len(KEYS) + 1, read_keys=lambda: "")
+
+
+def test_keyboard_drives_a_real_recording(cfg):
+    """The decode path and the control loop, joined up, with no terminal."""
+    script = ["q"] * 10 + ["]"] * 3 + [END_SUCCESS]
+    queue = list(script)
+    dev = KeyboardDevice(cfg.n_joints, read_keys=lambda: queue.pop(0) if queue else "")
+    fake = FakeClock()
+    rec = record_episode(SimulatedArm(cfg), dev, cfg, clock=fake.clock, sleep=fake.sleep)
+    assert rec.success is True
+    assert rec.n_steps == len(script) - 1
+    assert rec.frame["joint_0"].iloc[-1] > rec.frame["joint_0"].iloc[0]
+    assert rec.frame["gripper_cmd"].iloc[-1] > 0

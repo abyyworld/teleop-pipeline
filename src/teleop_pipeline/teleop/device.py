@@ -10,6 +10,7 @@ follow would erase that gap at the source.
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
@@ -105,16 +106,30 @@ class KeyboardDevice:
     Reads whatever keys arrived since the last step rather than waiting for one,
     because the control loop owns the timing. A step with no keypress is a hold,
     which is a real thing an operator does and must be recorded as such.
+
+    `read_keys` replaces the terminal reader. Decoding keys into commands is the
+    part with the bugs in it and the part a live operator depends on, so it is
+    kept separable from the raw-mode I/O that cannot run under a test runner.
     """
 
-    def __init__(self, n_joints: int, *, step_rad: float = 0.02, grip_rate: float = 0.08) -> None:
+    def __init__(
+        self,
+        n_joints: int,
+        *,
+        step_rad: float = 0.02,
+        grip_rate: float = 0.08,
+        read_keys: Callable[[], str] | None = None,
+    ) -> None:
         if n_joints > len(KEYS):
             raise ValueError(f"keyboard layout covers {len(KEYS)} joints, rig has {n_joints}")
         self.n_joints = n_joints
         self.step_rad = step_rad
         self.grip_rate = grip_rate
         self._restore = None
+        self._read_keys = read_keys
         self._win = sys.platform == "win32"
+        if read_keys is not None:
+            return  # no terminal to put into raw mode
         if not self._win:
             import termios
             import tty
@@ -131,6 +146,8 @@ class KeyboardDevice:
 
     def _pending(self) -> str:
         """Every key buffered since the last call, as one string."""
+        if self._read_keys is not None:
+            return self._read_keys()
         out = []
         if self._win:
             while self._msvcrt.kbhit():

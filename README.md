@@ -324,14 +324,14 @@ src/teleop_pipeline/
   report.py              Markdown data-quality report
   synthetic.py           session generator with injected defects
 flows/ingest_flow.py     Prefect operational ingestion
-tests/                   72 tests; each quality metric has a defect-injection test
+tests/                   83 tests; each quality metric has a defect-injection test
 ```
 
 ## Commands
 
 ```bash
 make install-all    # venv + every extra
-make test           # 72 tests
+make test           # 83 tests
 make lint           # ruff
 make repro          # rebuild whatever is stale
 make pipeline       # run every stage directly, without DVC
