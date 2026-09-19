@@ -2,6 +2,9 @@
 
 **Versioned, validated, reproducible teleoperation data for robot policy learning.**
 
+Part of [autonomy for remote handling in hazardous environments](https://abyyworld.github.io/teleop-pipeline/),
+which is where the results live, including the ones that came out negative.
+
 Teleoperation datasets in academic labs are usually a folder tree of CSVs with a
 naming convention that lived in one person's head. This repository is the
 infrastructure that replaces it: raw sessions go in, a schema-checked and
