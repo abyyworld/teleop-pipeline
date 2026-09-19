@@ -66,9 +66,11 @@ jobs:
           print(f"page parses, {len(src)} bytes, every tag balanced")
           CHECK
 
+      # Pages has to be switched on once by hand, under Settings -> Pages, with
+      # the source set to GitHub Actions. The workflow token is not allowed to
+      # create the site itself ("Resource not accessible by integration"), and
+      # passing enablement: true only turns that into a hard failure here.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
