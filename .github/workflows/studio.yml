@@ -18,6 +18,12 @@ on:
 
 permissions:
   contents: write
+  # Build provenance: a signed statement tying each binary to this workflow,
+  # this repository and this commit. It is what someone can check instead of
+  # taking our word for it, and it is the only answer to an unsigned binary
+  # that does not cost money.
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -109,6 +115,10 @@ jobs:
       - name: Name the asset for its platform
         run: mv "dist/${{ matrix.binary }}" "dist/${{ matrix.asset }}"
 
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/${{ matrix.asset }}
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset }}
@@ -128,6 +138,16 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      # Published alongside the binaries so a download can be checked against
+      # what the build machine actually produced, without trusting the browser,
+      # the network or us.
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag || github.ref_name }}
