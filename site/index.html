@@ -334,10 +334,35 @@ footer .wrap { padding-top: 24px; padding-bottom: 44px; color: var(--muted); fon
       <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-linux-x86_64">Linux <span>x86-64, 331 MB</span></a>
     </div>
     <p style="color:var(--muted); font-size:14.5px">
-      PyTorch is bundled, which is where the size goes. Nothing else to install. On macOS,
-      an unsigned binary needs
-      <code>xattr -d com.apple.quarantine ./teleop-studio-macos-arm64</code> once.
+      PyTorch is bundled, which is where the size goes. Nothing else to install.
       A machine with a GPU should install the package instead and get the GPU build.
+    </p>
+
+    <h3 style="margin-top:22px">Your browser will warn you, and it is right to</h3>
+    <p>
+      These binaries are not code-signed, because a signing certificate costs money this
+      project does not yet spend. Chrome, Windows SmartScreen and macOS Gatekeeper all
+      treat an unsigned executable as suspect. That warning is about a missing
+      certificate, not about anything found in the file, but you should not take that on
+      faith from a web page either. Check it instead:
+    </p>
+    <ul class="plain" style="font-size:15px">
+      <li><strong>Compare the hash.</strong> Every release ships a
+        <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest">SHA256SUMS</a>
+        file. Run <code>shasum -a 256 &lt;file&gt;</code> on macOS or Linux, or
+        <code>Get-FileHash &lt;file&gt;</code> in PowerShell, and compare.</li>
+      <li><strong>Check the provenance.</strong> Each binary carries a signed attestation
+        tying it to the workflow, repository and commit that produced it.
+        <code>gh attestation verify &lt;file&gt; --repo abyyworld/teleop-pipeline</code>
+        confirms that cryptographically.</li>
+      <li><strong>Or skip the binary.</strong> <code>pip install -e ".[dev,all]"</code>
+        from a clone, then <code>teleop-pipeline studio</code>. Same app, built on your
+        machine from source you can read.</li>
+    </ul>
+    <p style="color:var(--muted); font-size:14.5px">
+      On macOS, keeping the file still leaves it quarantined, so it needs
+      <code>xattr -d com.apple.quarantine ./teleop-studio-macos-arm64</code> once before
+      it will run.
     </p>
   </section>
 
