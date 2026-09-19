@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autonomy for remote handling</title>
+<meta name="description" content="Building the data and the evidence that would let remote handling in hazardous environments become autonomous. Work log, results including the negative ones, and the code.">
+<meta property="og:title" content="Autonomy for remote handling in hazardous environments">
+<meta property="og:description" content="Nine open repositories, one honest evaluation standard, and results reported whichever way they go.">
+<meta property="og:type" content="website">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --band: #f3f5f7;
+  --ink: #14171a;
+  --muted: #5b6470;
+  --rule: #d8dde3;
+  --accent: #1f4e79;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --critical: #d03b3b;
+  --maxw: 760px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1215;
+    --band: #171a1e;
+    --ink: #e8eaed;
+    --muted: #9ba3ae;
+    --rule: #262b31;
+    --accent: #8fc0f0;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --critical: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1215; --band: #171a1e; --ink: #e8eaed; --muted: #9ba3ae;
+  --rule: #262b31; --accent: #8fc0f0; --series-1: #3987e5; --series-2: #d95926; --critical: #e66767;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+/* A single long token, such as the macOS quarantine command, is enough to make
+   the whole page wider than a phone. Nothing here may set the page width. */
+h1, h2, h3, p, li, td, th { overflow-wrap: break-word; }
+code { overflow-wrap: anywhere; font-size: 0.92em; }
+svg, img { max-width: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.65 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+
+header { border-bottom: 1px solid var(--rule); }
+header .wrap { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-top: 18px; padding-bottom: 18px; }
+header strong { font-size: 15px; letter-spacing: -0.01em; }
+header nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; flex-wrap: wrap; }
+header nav a { color: var(--muted); text-decoration: none; }
+header nav a:hover { color: var(--ink); }
+
+h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.15; letter-spacing: -0.025em; margin: 44px 0 0; }
+h2 { font-size: clamp(20px, 4vw, 24px); letter-spacing: -0.02em; margin: 52px 0 12px; }
+h3 { font-size: 16px; margin: 0 0 4px; }
+.lede { font-size: clamp(17px, 2.6vw, 19px); color: var(--muted); margin: 14px 0 0; }
+p { margin: 0 0 14px; }
+section { padding-bottom: 8px; }
+
+.band { background: var(--band); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin: 44px 0; }
+.band .wrap { padding-top: 28px; padding-bottom: 28px; }
+
+.stats { display: flex; gap: 28px; flex-wrap: wrap; margin: 26px 0 0; }
+.stats div { min-width: 0; }
+.stats .n { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.stats .k { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 15px; margin: 8px 0 4px; }
+th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; }
+tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; }
+
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain > li { padding: 12px 0; border-top: 1px solid var(--rule); }
+ul.plain > li:first-child { border-top: 0; }
+.repo { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.repo a { font-weight: 600; text-decoration: none; }
+.repo .meta { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
+.repo p { flex-basis: 100%; margin: 2px 0 0; color: var(--muted); font-size: 15px; }
+
+.note { border-left: 3px solid var(--critical); padding: 2px 0 2px 14px; margin: 18px 0; }
+.note b { color: var(--critical); }
+
+.dl { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 6px; }
+.dl a {
+  display: inline-block; text-decoration: none; font-size: 14.5px; font-weight: 550;
+  border: 1px solid var(--rule); border-radius: 8px; padding: 8px 14px; color: var(--ink);
+}
+.dl a:hover { border-color: var(--accent); color: var(--accent); }
+.dl a span { color: var(--muted); font-weight: 400; }
+
+figure { margin: 18px 0; }
+.chart { overflow-x: auto; }
+.chart svg { min-width: 460px; }
+figcaption { color: var(--muted); font-size: 13.5px; margin-top: 8px; }
+.legend { display: flex; gap: 16px; font-size: 13.5px; color: var(--muted); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 2px; border-radius: 1px; }
+
+footer { border-top: 1px solid var(--rule); margin-top: 56px; }
+footer .wrap { padding-top: 24px; padding-bottom: 44px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <strong>Remote handling autonomy</strong>
+    <nav>
+      <a href="#result">Result</a>
+      <a href="#code">Code</a>
+      <a href="#app">App</a>
+      <a href="#open">Open questions</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <h1>Autonomy for remote handling in hazardous environments</h1>
+  <p class="lede">
+    Decommissioning is done by remote operation because a human cannot be in the room.
+    The labour is not expensive, it is unavailable at any price. Autonomy would change
+    that, and the thing standing in the way is not capability. It is that nobody can
+    demonstrate a policy is safe to run in a cell.
+  </p>
+</div>
+
+<div class="wrap">
+  <section>
+    <h2>The gap</h2>
+    <p>
+      Every task in a sealed cell is performed by a person driving a manipulator through
+      a screen, slowly, one operator to one machine. Dose limits cap the hours available
+      absolutely, so automating this is not displacing a worker. It is creating capacity
+      that does not otherwise exist.
+    </p>
+    <p>
+      There is no accepted evidence standard for when a learned policy may run in that
+      setting, and almost no real-hardware data to build one from. This work is an
+      attempt at both: collect demonstrations from the operation that is already
+      happening, and prove policy quality to a standard a regulator could accept.
+    </p>
+  </section>
+</div>
+
+<div class="band">
+  <div class="wrap">
+    <div class="stats">
+      <div><div class="n">53,723</div><div class="k">lines of Python</div></div>
+      <div><div class="n">956</div><div class="k">tests</div></div>
+      <div><div class="n">9</div><div class="k">open repositories</div></div>
+      <div><div class="n">0</div><div class="k">real-hardware results</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="result">
+    <h2>The first result is a negative one</h2>
+    <p>
+      A behaviour-cloning policy trained on the pipeline below beats the obvious
+      baselines by about four times. It also loses to the least clever baseline there
+      is, which is repeating the previous action, at every point across the prediction
+      horizon.
+    </p>
+
+    <figure>
+      <div class="legend">
+        <span><i style="background:var(--series-1)"></i>trained policy</span>
+        <span><i style="background:var(--series-2)"></i>repeat last action</span>
+      </div>
+      <div class="chart">
+      <svg viewBox="0 0 640 236" width="100%" role="img"
+           aria-label="Mean absolute error against horizon offset. The trained policy is above the persistence baseline at every offset from 0 to 7, meaning worse.">
+        <g font-size="13" fill="var(--muted)" font-family="inherit">
+          <line x1="64" x2="624" y1="186" y2="186" stroke="var(--rule)" stroke-width="1"/>
+          <line x1="64" x2="624" y1="132" y2="132" stroke="var(--rule)" stroke-width="1"/>
+          <line x1="64" x2="624" y1="78"  y2="78"  stroke="var(--rule)" stroke-width="1"/>
+          <line x1="64" x2="624" y1="24"  y2="24"  stroke="var(--rule)" stroke-width="1"/>
+          <text x="56" y="190" text-anchor="end">0.000</text>
+          <text x="56" y="136" text-anchor="end">0.008</text>
+          <text x="56" y="82"  text-anchor="end">0.016</text>
+          <text x="56" y="28"  text-anchor="end">0.024</text>
+          <text x="64"  y="208" text-anchor="middle">0</text>
+          <text x="344" y="208" text-anchor="middle">4</text>
+          <text x="624" y="208" text-anchor="middle">7</text>
+          <text x="344" y="230" text-anchor="middle">horizon offset</text>
+          <text x="14" y="105" transform="rotate(-90 14 105)" text-anchor="middle">MAE (rad)</text>
+        </g>
+        <!-- policy: 0.00773 0.01038 0.01259 0.01480 0.01688 0.01908 0.02143 0.02368 -->
+        <path d="M64,133.9 L144,116.0 L224,101.1 L304,86.2 L384,72.1 L464,57.3 L544,41.4 L624,26.3"
+              fill="none" stroke="var(--series-1)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <!-- persistence: 0.00362 0.00666 0.00919 0.01152 0.01369 0.01606 0.01859 0.02106 -->
+        <path d="M64,161.6 L144,141.1 L224,124.0 L304,108.3 L384,93.6 L464,77.6 L544,60.5 L624,43.8"
+              fill="none" stroke="var(--series-2)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      </div>
+      <figcaption>
+        Lower is better, so the blue line being above the orange one means the trained
+        policy is worse than repeating the last command, everywhere. Measured on 55
+        held-out episodes, 8,054 windows, split by session so no session appears on both
+        sides.
+      </figcaption>
+    </figure>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Predictor</th><th class="num">Chunk MAE (rad)</th><th>What it is</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>repeat last action</td><td class="num">0.01255</td><td>Free. No model.</td></tr>
+          <tr><td>trained policy</td><td class="num">0.01582</td><td>Behaviour cloning with action chunking.</td></tr>
+          <tr><td>training-set mean</td><td class="num">0.06670</td><td>Free. Exploits directional bias only.</td></tr>
+          <tr><td>command no motion</td><td class="num">0.07261</td><td>The floor.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <p><b>This is the point, not an embarrassment.</b>
+      The same number reported without a persistence baseline would have looked like a
+      working policy. Most published action-error figures in robot learning are reported
+      against nothing. The evaluation here refuses to let that happen, and it refuses in
+      the direction that costs me something.</p>
+    </div>
+
+    <p>
+      The result above is on simulated data, where trajectories are smooth and repeating
+      the last command is close to unbeatable. On real teleoperation the operator makes
+      discrete decisions and persistence should break at the transitions. Whether a
+      policy wins there is an open question, and answering it on real hardware is the
+      next piece of work rather than something to assert now.
+    </p>
+  </section>
+
+  <section id="code">
+    <h2>What is built</h2>
+    <p>
+      Nine repositories, all public, all runnable from a clean clone on generated data
+      so none of it requires lab access to assess. Three of them exist because a result
+      came back negative and was published anyway.
+    </p>
+    <ul class="plain">
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/teleop-pipeline">teleop-pipeline</a>
+        <span class="meta">6,777 lines &middot; 102 tests</span>
+        <p>Raw operator sessions in, a schema-checked, resampled, quality-scored and
+        content-addressed corpus out, with every trained policy traceable to the exact
+        bytes it was trained on. Nine quality metrics, each with a defect-injection test
+        proving it catches what it claims.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/vla-evals">vla-evals</a>
+        <span class="meta">2,494 lines &middot; 42 tests</span>
+        <p>Paired evaluation with McNemar exact tests and bootstrap confidence intervals.
+        Refuses to declare a winner the evidence cannot resolve, and prints the smallest
+        effect the sample could have detected when it finds nothing.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/edge-policy-runtime">edge-policy-runtime</a>
+        <span class="meta">4,284 lines &middot; 89 tests</span>
+        <p>Signed over-the-air policy delivery with an on-device pre-flight health gate
+        that refuses to run a bundle failing its checks or its signature.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/robot-fleet-loop">robot-fleet-loop</a>
+        <span class="meta">4,639 lines &middot; 93 tests</span>
+        <p>The return path: telemetry, failure triage, retraining, canary and rollback,
+        with a gate that can actually say no.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/interactive-correction-for-manipulation">interactive-correction-for-manipulation</a>
+        <span class="meta">9,533 lines &middot; 57 tests</span>
+        <p>What it costs when a human correction is credited to the wrong part of a
+        trajectory, and how often that happens.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/isaac-grasp-scaling">isaac-grasp-scaling</a>
+        <span class="meta">7,146 lines &middot; 131 tests</span>
+        <p>Does a grasping network's orientation failure survive more data, or was the
+        dataset simply too small? Answered rather than assumed.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/simulated-grasping">simulated-grasping</a>
+        <span class="meta">7,147 lines &middot; 113 tests</span>
+        <p>Grasping in simulation, including what it takes to train one without a GPU and
+        what that costs in precision.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/ros2-grasp-latency">ros2-grasp-latency</a>
+        <span class="meta">10,159 lines &middot; 29 tests</span>
+        <p>How much end-to-end latency writing a ROS 2 grasp node in Python actually
+        costs, measured rather than argued about.</p>
+      </div></li>
+      <li><div class="repo">
+        <a href="https://github.com/abyyworld/erl-semantic-mapping">erl-semantic-mapping</a>
+        <span class="meta">1,544 lines &middot; 36 tests</span>
+        <p>Semantic occupancy mapping with an evaluation harness that gates on its own
+        assumptions.</p>
+      </div></li>
+    </ul>
+  </section>
+
+  <section id="app">
+    <h2>The app</h2>
+    <p>
+      The whole pipeline also runs as a desktop app, for the case where you are standing
+      at a rig rather than sitting at a terminal. A button per stage, a live log, and the
+      results. It leads with whether the policy beats the baselines and says so in the
+      red case as plainly as the green one.
+    </p>
+    <div class="dl">
+      <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-macos-arm64">macOS <span>Apple silicon, 220 MB</span></a>
+      <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-windows-x86_64.exe">Windows <span>x86-64, 218 MB</span></a>
+      <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-linux-x86_64">Linux <span>x86-64, 331 MB</span></a>
+    </div>
+    <p style="color:var(--muted); font-size:14.5px">
+      PyTorch is bundled, which is where the size goes. Nothing else to install. On macOS,
+      an unsigned binary needs
+      <code>xattr -d com.apple.quarantine ./teleop-studio-macos-arm64</code> once.
+      A machine with a GPU should install the package instead and get the GPU build.
+    </p>
+  </section>
+
+  <section id="open">
+    <h2>What is not true yet</h2>
+    <p>
+      Stated here rather than buried, because the entire method being proposed is
+      refusing to report a number that cannot be defended.
+    </p>
+    <ul class="plain">
+      <li><strong>No real-hardware result.</strong> Every figure on this page comes from
+        simulation or generated data.</li>
+      <li><strong>No users.</strong> Nobody outside the project has run any of it.</li>
+      <li><strong>No revenue, no pricing, no letters of intent.</strong></li>
+      <li><strong>No operator interviews yet.</strong> The choice of which task to
+        automate first is a hypothesis, not a finding.</li>
+      <li><strong>One person.</strong> Finding a second is an explicit milestone, not an
+        afterthought.</li>
+    </ul>
+    <p style="margin-top:18px">
+      The next piece of work is one task, one real manipulator, demonstrations collected
+      through the existing recorder, a policy trained on them, and a paired evaluation
+      against the operator baseline. Published whichever way it goes. That needs about a
+      month of lab time and no capital.
+    </p>
+  </section>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Work in progress, by <a href="https://github.com/abyyworld">abyyworld</a>.
+    Figures on this page were produced by running the code, not counted from source.
+    <a href="https://github.com/abyyworld/teleop-pipeline/tree/main/site">Source for this page</a>.
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,76 @@
+name: pages
+
+# Publishes site/ to GitHub Pages. The page is a single static file with no
+# build step and no external requests, so there is nothing to compile and
+# nothing that breaks when a CDN does.
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time. A queued run is allowed to wait rather than being
+# cancelled, so a push that follows another still reaches the live site.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The page must not reference anything it cannot serve
+        run: |
+          # No external scripts, styles or fonts: the site has to render on a
+          # lab machine with no outbound network, and a third-party request
+          # from this page would also be a tracking vector.
+          if grep -nEi '<(script|link)[^>]+(src|href)="https?://' site/index.html; then
+            echo "external resource referenced above" >&2
+            exit 1
+          fi
+          python - <<'CHECK'
+          import html.parser
+          import sys
+
+          src = open("site/index.html", encoding="utf-8").read()
+          stack = []
+          void = {"br", "hr", "img", "meta", "link", "input", "source", "path",
+                  "line", "circle", "rect", "use"}
+
+          class P(html.parser.HTMLParser):
+              def handle_starttag(self, tag, attrs):
+                  if tag not in void:
+                      stack.append(tag)
+              def handle_endtag(self, tag):
+                  # An unbalanced document still renders, just not as written.
+                  if tag in void:
+                      return
+                  if not stack or stack[-1] != tag:
+                      sys.exit(f"tag mismatch: </{tag}> closes {stack[-1:] or ['nothing']}")
+                  stack.pop()
+
+          P().feed(src)
+          if stack:
+              sys.exit(f"unclosed tags: {stack}")
+          print(f"page parses, {len(src)} bytes, every tag balanced")
+          CHECK
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
