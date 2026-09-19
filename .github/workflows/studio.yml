@@ -1,0 +1,136 @@
+name: studio
+
+# Standalone builds of the desktop app, so the pipeline can be run by someone
+# who has no Python and no intention of installing one. PyTorch is bundled, and
+# from the CPU-only index: the default wheel carries the CUDA runtime and turns
+# a 400 MB app into a 3 GB one for no benefit on a laptop. A lab machine with a
+# GPU installs the package properly and gets the GPU build.
+
+on:
+  push:
+    tags: ["studio-v*"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag to publish under, e.g. studio-v0.1.0. Blank builds only."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: teleop-studio-linux-x86_64
+            binary: teleop-studio
+          - os: macos-latest
+            asset: teleop-studio-macos-arm64
+            binary: teleop-studio
+          - os: windows-latest
+            asset: teleop-studio-windows-x86_64.exe
+            binary: teleop-studio.exe
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          # CPU-only torch. macOS arm64 wheels are CPU-only already and are not
+          # published on the cpu index, so it only applies to Linux and Windows.
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            pip install torch
+          else
+            pip install torch --index-url https://download.pytorch.org/whl/cpu
+          fi
+          pip install pyinstaller==6.22.3
+
+      - name: Build
+        run: |
+          # --add-data takes the platform path separator: ';' on Windows.
+          if [ "$RUNNER_OS" = "Windows" ]; then SEP=';'; else SEP=':'; fi
+          pyinstaller --onefile --name teleop-studio \
+            --add-data "src/teleop_pipeline/studio/index.html${SEP}teleop_pipeline/studio" \
+            --collect-submodules teleop_pipeline \
+            --collect-all torch \
+            --exclude-module tkinter \
+            --exclude-module matplotlib \
+            packaging/studio_entry.py
+
+      - name: The app must start, serve, and train with no repository present
+        run: |
+          # An empty directory with only params.yaml, deliberately: the binary
+          # has to work away from the checkout it was built from.
+          SMOKE="${RUNNER_TEMP}/smoke"
+          mkdir -p "$SMOKE"
+          cp params.yaml "$SMOKE/"
+          cp "dist/${{ matrix.binary }}" "$SMOKE/"
+          cd "$SMOKE"
+          ./${{ matrix.binary }} --port 8791 --no-open &
+          APP=$!
+          python - <<'PY'
+          import json, sys, time, urllib.request, urllib.error
+          # The first start of a one-file bundle unpacks itself, which is slow
+          # on a cold runner; poll rather than sleeping a guessed interval.
+          for attempt in range(120):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8791/api/state", timeout=5) as r:
+                      sys.exit("served the API without a token")
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 403:
+                      print(f"up after {attempt}s, and refusing untokenised requests")
+                      sys.exit(0)
+                  sys.exit(f"unexpected status {exc.code}")
+              except OSError:
+                  time.sleep(1)
+          sys.exit("the app never started listening")
+          PY
+          kill $APP
+          # Training is the reason torch is bundled; prove it is importable from
+          # inside the binary rather than trusting the build flags.
+          ./${{ matrix.binary }} --port 0 --no-open --self-test
+
+      - name: Report the size, because it is the thing people complain about
+        run: ls -lh "dist/${{ matrix.binary }}"
+
+      - name: Name the asset for its platform
+        run: mv "dist/${{ matrix.binary }}" "dist/${{ matrix.asset }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    # Either a studio-v* tag was pushed, or the workflow was started by hand and
+    # named a tag. The second path exists because creating a tag needs push
+    # rights a build machine may not have; the runner's token does, and the
+    # release API creates the tag from github.sha.
+    if: startsWith(github.ref, 'refs/tags/studio-v') || inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          files: dist/*
+          generate_release_notes: true

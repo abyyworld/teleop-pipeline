@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teleop Studio</title>
+<style>
+:root {
+  color-scheme: light;
+  --plane: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --critical: #d03b3b;
+  --good-ink: #006300;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane: #0d0d0d;
+    --surface-1: #1a1a19;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --good-ink: #0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #0d0d0d;
+  --surface-1: #1a1a19;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --good-ink: #0ca30c;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--text-primary);
+  font: 14px/1.5 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+header {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 14px 16px; border-bottom: 1px solid var(--grid);
+  background: var(--surface-1); position: sticky; top: 0; z-index: 5;
+}
+header h1 { font-size: 15px; margin: 0; letter-spacing: -0.01em; }
+header .project { color: var(--text-secondary); font-size: 13px; }
+header .spacer { flex: 1 1 auto; }
+
+button {
+  font: inherit; font-weight: 550; cursor: pointer;
+  border: 1px solid var(--axis); border-radius: 8px;
+  background: var(--surface-1); color: var(--text-primary);
+  padding: 7px 13px;
+}
+button:hover:not(:disabled) { border-color: var(--text-secondary); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button.primary { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+button.danger { border-color: var(--critical); color: var(--critical); }
+button.small { padding: 4px 9px; font-size: 12.5px; font-weight: 500; }
+
+main { display: grid; grid-template-columns: minmax(280px, 340px) 1fr; gap: 16px; padding: 16px; align-items: start; }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--surface-1); border: 1px solid var(--grid);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px;
+}
+.card > h2 {
+  margin: 0 0 10px; font-size: 11px; font-weight: 650;
+  letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted);
+}
+
+.stage { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--grid); }
+.stage:first-of-type { border-top: 0; }
+.stage .dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; flex: 0 0 auto; background: var(--axis); }
+.stage > button { align-self: start; }
+.stage[data-status="done"] .dot { background: var(--good); }
+.stage[data-status="running"] .dot { background: var(--series-1); animation: pulse 1s ease-in-out infinite; }
+.stage[data-status="failed"] .dot { background: var(--critical); }
+.stage[data-status="skipped"] .dot { background: var(--warning); }
+@keyframes pulse { 50% { opacity: 0.25; } }
+.stage .body { flex: 1 1 auto; min-width: 0; }
+.stage .name { font-weight: 550; display: flex; align-items: baseline; gap: 6px; }
+.stage .blurb { color: var(--text-secondary); font-size: 12.5px; margin-top: 2px; }
+.stage .meta { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.stage .tag { font-size: 10.5px; color: var(--text-muted); border: 1px solid var(--grid); border-radius: 4px; padding: 0 4px; }
+
+#log {
+  font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--plane); border: 1px solid var(--grid); border-radius: 8px;
+  padding: 10px 12px; height: 260px; overflow-y: auto; color: var(--text-secondary);
+}
+#log .hl { color: var(--text-primary); font-weight: 600; }
+#log .bad { color: var(--critical); }
+
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 5px 8px 5px 0; border-bottom: 1px solid var(--grid); }
+th { font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; }
+td.num, th.num { text-align: right; }
+tr:last-child td { border-bottom: 0; }
+
+.verdict { border-radius: 8px; padding: 11px 13px; margin-bottom: 12px; border: 1px solid; display: flex; gap: 9px; }
+.verdict .icon { font-weight: 700; flex: 0 0 auto; }
+.verdict.win { border-color: var(--good); background: color-mix(in srgb, var(--good) 8%, transparent); }
+.verdict.lose { border-color: var(--critical); background: color-mix(in srgb, var(--critical) 8%, transparent); }
+.verdict.win .icon { color: var(--good-ink); }
+.verdict.lose .icon { color: var(--critical); }
+.verdict b { display: block; }
+
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+
+.stat { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 10px; }
+.stat div { min-width: 0; }
+.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.stat .v { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.stat .v small { font-size: 12px; font-weight: 400; color: var(--text-secondary); letter-spacing: 0; }
+
+.empty { color: var(--text-muted); font-size: 13px; }
+.tip {
+  position: fixed; pointer-events: none; opacity: 0; transition: opacity .1s;
+  background: var(--text-primary); color: var(--surface-1);
+  font-size: 12px; padding: 5px 8px; border-radius: 6px; z-index: 20;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+input[type=number] {
+  font: inherit; width: 68px; padding: 5px 7px; border-radius: 7px;
+  border: 1px solid var(--axis); background: var(--surface-1); color: var(--text-primary);
+}
+label { font-size: 12.5px; color: var(--text-secondary); }
+.warn { color: var(--critical); font-size: 12.5px; }
+dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0; font-size: 12.5px; }
+dl.kv dt { color: var(--text-muted); }
+dl.kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Teleop Studio</h1>
+  <span class="project" id="project"></span>
+  <span class="spacer"></span>
+  <span id="torchwarn" class="warn" hidden>PyTorch not installed, so training is unavailable</span>
+  <button id="cancel" class="danger" hidden>Stop after this stage</button>
+  <button id="runall" class="primary">Run everything</button>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>Pipeline</h2>
+      <div id="stages"></div>
+    </div>
+    <div class="card">
+      <h2>Settings</h2>
+      <dl class="kv" id="settings"></dl>
+      <p class="empty" style="margin:10px 0 0" id="paramspath"></p>
+    </div>
+  </section>
+
+  <section>
+    <div class="card" id="evalcard">
+      <h2>Does the policy beat doing nothing clever?</h2>
+      <div id="evalbody"><p class="empty">Run Evaluate to find out.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Training</h2>
+      <div id="trainbody"><p class="empty">No training run yet.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Corpus</h2>
+      <div id="corpusbody"><p class="empty">No scored episodes yet.</p></div>
+    </div>
+
+    <div class="card">
+      <h2>Log</h2>
+      <div id="log"></div>
+    </div>
+  </section>
+</main>
+
+<div class="tip" id="tip"></div>
+
+<script>
+const TOKEN = new URLSearchParams(location.search).get("t") || "";
+const NS = "http://www.w3.org/2000/svg";
+const tip = document.getElementById("tip");
+let logCursor = 0, lastRunnerKey = "";
+
+const api = async (path, opts = {}) => {
+  const sep = path.includes("?") ? "&" : "?";
+  const res = await fetch(path + sep + "t=" + encodeURIComponent(TOKEN), {
+    headers: { "Content-Type": "application/json" }, ...opts,
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.json();
+};
+
+const el = (tag, attrs = {}, children = []) => {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k === "text") node.textContent = v;
+    else if (v !== null && v !== undefined) node.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) node.append(c);
+  return node;
+};
+const svgEl = (tag, attrs = {}) => {
+  const node = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) node.setAttribute(k, v);
+  return node;
+};
+const fmt = (x, d = 5) => (x === null || x === undefined || Number.isNaN(x)) ? "n/a" : Number(x).toFixed(d);
+// A size, with no sign: which way it went is carried by the sentence around it.
+const magnitude = (x) => (x === null || x === undefined) ? "n/a" : (Math.abs(x) * 100).toFixed(1) + "%";
+
+const showTip = (evt, text) => {
+  tip.textContent = text;
+  tip.style.opacity = "1";
+  const pad = 12;
+  tip.style.left = Math.min(evt.clientX + pad, window.innerWidth - tip.offsetWidth - 6) + "px";
+  tip.style.top = Math.max(evt.clientY - tip.offsetHeight - pad, 6) + "px";
+};
+const hideTip = () => { tip.style.opacity = "0"; };
+
+// -- charts ------------------------------------------------------------------
+// Two forms only: a line chart for anything indexed by epoch or horizon offset,
+// and a ranked bar chart for the baseline comparison. Both carry a hover layer,
+// both label their series directly, and neither uses a second y-axis.
+
+function lineChart(series, { xLabel, yLabel, width = 560, height = 205 }) {
+  const pad = { top: 10, right: 12, bottom: 44, left: 68 };
+  const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, width: "100%", role: "img" });
+  const points = series.flatMap((s) => s.values);
+  if (!points.length) return svg;
+  const xs = series.flatMap((s) => s.values.map((_, i) => i));
+  const xMax = Math.max(...xs, 1);
+  const yMin = Math.min(...points), yMax = Math.max(...points);
+  const span = (yMax - yMin) || Math.abs(yMax) || 1;
+  const lo = yMin - span * 0.08, hi = yMax + span * 0.08;
+  const px = (i) => pad.left + (i / xMax) * (width - pad.left - pad.right);
+  const py = (v) => height - pad.bottom - ((v - lo) / (hi - lo)) * (height - pad.top - pad.bottom);
+
+  // One decimal count for the whole axis, derived from the tick step. Per-tick
+  // significant figures give a ladder like 0.0020 / 0.018 / 0.025, which reads
+  // as three different scales.
+  const step = (hi - lo) / 3;
+  const decimals = Math.min(6, Math.max(1, Math.ceil(-Math.log10(step)) + 1));
+  for (let t = 0; t <= 3; t++) {
+    const v = lo + step * t;
+    const y = py(v);
+    svg.append(svgEl("line", { x1: pad.left, x2: width - pad.right, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": 1 }));
+    const label = svgEl("text", { x: pad.left - 7, y: y + 4, "text-anchor": "end", fill: "var(--text-muted)", "font-size": 10.5 });
+    label.textContent = v.toFixed(decimals);
+    svg.append(label);
+  }
+  svg.append(svgEl("line", { x1: pad.left, x2: width - pad.right, y1: height - pad.bottom, y2: height - pad.bottom, stroke: "var(--axis)", "stroke-width": 1 }));
+
+  series.forEach((s) => {
+    const d = s.values.map((v, i) => `${i ? "L" : "M"}${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" ");
+    svg.append(svgEl("path", { d, fill: "none", stroke: s.colour, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    s.values.forEach((v, i) => {
+      const dot = svgEl("circle", { cx: px(i), cy: py(v), r: 9, fill: "transparent" });
+      dot.addEventListener("mousemove", (e) => showTip(e, `${s.name} · ${xLabel} ${i} · ${v.toPrecision(4)}`));
+      dot.addEventListener("mouseleave", hideTip);
+      svg.append(dot);
+    });
+  });
+
+  // Tick labels at the ends and the middle. Every index would be unreadable at
+  // 80 epochs and is unnecessary at 8 offsets.
+  for (const i of [...new Set([0, Math.round(xMax / 2), xMax])]) {
+    const t = svgEl("text", { x: px(i), y: height - pad.bottom + 15, "text-anchor": "middle", fill: "var(--text-muted)", "font-size": 10.5 });
+    t.textContent = String(i);
+    svg.append(t);
+  }
+  const xt = svgEl("text", { x: (width + pad.left) / 2, y: height - 6, "text-anchor": "middle", fill: "var(--text-muted)", "font-size": 11 });
+  xt.textContent = xLabel;
+  svg.append(xt);
+  const yt = svgEl("text", { x: 11, y: (height - pad.bottom) / 2, fill: "var(--text-muted)", "font-size": 11, transform: `rotate(-90 11 ${(height - pad.bottom) / 2})`, "text-anchor": "middle" });
+  yt.textContent = yLabel;
+  svg.append(yt);
+  return svg;
+}
+
+function barChart(rows, { width = 560, rowHeight = 30, format = (v) => v.toFixed(5), unit = "" }) {
+  const labelW = 122, valueW = 74, gap = 2;
+  const height = rows.length * rowHeight + 6;
+  const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, width: "100%", role: "img" });
+  const max = Math.max(...rows.map((r) => r.value)) || 1;
+  const trackW = width - labelW - valueW;
+  rows.forEach((r, i) => {
+    const y = i * rowHeight + 3;
+    const h = rowHeight - 12;
+    const name = svgEl("text", { x: 0, y: y + h - 2, fill: "var(--text-secondary)", "font-size": 12.5 });
+    name.textContent = r.label;
+    svg.append(name);
+    const w = Math.max((r.value / max) * trackW, 2);
+    const bar = svgEl("rect", { x: labelW, y, width: w - gap, height: h, rx: 4, fill: r.colour });
+    bar.addEventListener("mousemove", (e) => showTip(e, `${r.label} · ${format(r.value)}${unit}`));
+    bar.addEventListener("mouseleave", hideTip);
+    svg.append(bar);
+    const val = svgEl("text", { x: width, y: y + h - 2, "text-anchor": "end", fill: "var(--text-primary)", "font-size": 12.5, "font-weight": 550 });
+    val.textContent = format(r.value);
+    svg.append(val);
+  });
+  return svg;
+}
+
+const legend = (items) => el("div", { class: "legend" }, items.map((it) =>
+  el("span", {}, [el("i", { style: `background:${it.colour}` }), document.createTextNode(it.name)])));
+
+// -- panels ------------------------------------------------------------------
+
+function renderStages(state) {
+  const host = document.getElementById("stages");
+  host.replaceChildren();
+  const byKey = Object.fromEntries((state.runner.runs || []).map((r) => [r.key, r]));
+  for (const stage of state.stages) {
+    const run = byKey[stage.key];
+    const status = run ? run.status : (stage.has_output ? "done" : "idle");
+    const meta = run && run.status !== "queued" ? `${run.elapsed_s.toFixed(1)}s` : (stage.has_output ? "output on disk" : "");
+    const btn = el("button", { class: "small", text: "Run" });
+    btn.disabled = state.runner.busy || (stage.key === "train" && !state.torch);
+    btn.addEventListener("click", () => run_([stage.key]));
+    const name = el("div", { class: "name" }, [el("span", { text: stage.title })]);
+    if (stage.optional) name.append(el("span", { class: "tag", text: "optional" }));
+    const body = el("div", { class: "body" }, [
+      name,
+      el("div", { class: "blurb", text: stage.blurb }),
+    ]);
+    if (run && run.error) body.append(el("div", { class: "warn", text: run.error }));
+    if (meta) body.append(el("div", { class: "meta", text: meta }));
+    host.append(el("div", { class: "stage", "data-status": status }, [
+      el("div", { class: "dot" }), body, btn,
+    ]));
+  }
+}
+
+function renderEval(results) {
+  const host = document.getElementById("evalbody");
+  host.replaceChildren();
+  const m = results.eval && results.eval.metrics;
+  if (!m) { host.append(el("p", { class: "empty", text: "Run Evaluate to find out." })); return; }
+
+  const skill = m.skill_vs_best_baseline;
+  const best = m.best_baseline;
+  const wins = skill !== null && skill !== undefined && skill > 0;
+  const verdict = el("div", { class: "verdict " + (wins ? "win" : "lose") }, [
+    el("span", { class: "icon", text: wins ? "PASS" : "FAIL" }),
+    el("div", {}, [
+      el("b", {
+        text: wins
+          ? `The policy beats the best baseline (${best}) by ${magnitude(skill)}.`
+          : `The policy loses to the best baseline (${best}) by ${magnitude(skill)}.`,
+      }),
+      document.createTextNode(wins
+        ? "That margin is the thing worth reporting. Action error on its own would not have shown it."
+        : "It has learned nothing that repeating the last action does not already give you. Action error on its own would have hidden this."),
+    ]),
+  ]);
+  host.append(verdict);
+
+  host.append(el("div", { class: "stat" }, [
+    el("div", {}, [el("div", { class: "k", text: "next-step MAE" }),
+      el("div", { class: "v" }, [document.createTextNode(fmt(m.action_mae)),
+        el("small", { text: ` rad · 95% CI ${fmt(m.action_mae_ci95[0])}–${fmt(m.action_mae_ci95[1])}` })])]),
+    el("div", {}, [el("div", { class: "k", text: "gripper accuracy" }),
+      el("div", { class: "v", text: m.gripper_accuracy === undefined ? "n/a" : (m.gripper_accuracy * 100).toFixed(1) + "%" })]),
+    el("div", {}, [el("div", { class: "k", text: "evaluated on" }),
+      el("div", { class: "v" }, [document.createTextNode(String(m.n_episodes)),
+        el("small", { text: ` episodes · ${m.n_windows.toLocaleString()} windows` })])]),
+  ]));
+
+  const rows = [{ label: "policy", value: m.chunk_mae, colour: "var(--series-1)" }];
+  for (const [name, v] of Object.entries(m.baselines || {})) {
+    rows.push({ label: name, value: v.chunk_mae, colour: "var(--text-muted)" });
+  }
+  rows.sort((a, b) => a.value - b.value);
+  host.append(el("p", { class: "empty", style: "margin:14px 0 4px", text: "Chunk error, lower is better. Blue is the trained policy; grey bars are what you get for free." }));
+  host.append(barChart(rows, { unit: " rad" }));
+
+  const offsets = m.chunk_mae_by_offset || [];
+  const bestCurve = ((m.baselines || {})[best] || {}).mae_by_offset || [];
+  if (offsets.length > 1 && bestCurve.length === offsets.length) {
+    host.append(el("p", { class: "empty", style: "margin:16px 0 4px", text: "Error across the prediction horizon. A chunked policy is supposed to lose at offset 0 and win further out, by committing to a plan instead of extrapolating the last command." }));
+    host.append(legend([{ name: "policy", colour: "var(--series-1)" }, { name: best, colour: "var(--series-2)" }]));
+    host.append(lineChart([
+      { name: "policy", values: offsets, colour: "var(--series-1)" },
+      { name: best, values: bestCurve, colour: "var(--series-2)" },
+    ], { xLabel: "horizon offset", yLabel: "MAE (rad)" }));
+
+    const table = el("table", {}, [el("thead", {}, el("tr", {}, [
+      el("th", { text: "offset" }), el("th", { class: "num", text: "policy" }),
+      el("th", { class: "num", text: best }), el("th", { text: "winner" })]))]);
+    const tbody = el("tbody");
+    offsets.forEach((p, i) => {
+      const w = p < bestCurve[i];
+      tbody.append(el("tr", {}, [
+        el("td", { text: String(i) }),
+        el("td", { class: "num", text: fmt(p) }),
+        el("td", { class: "num", text: fmt(bestCurve[i]) }),
+        el("td", { text: w ? "policy" : best, style: `color:${w ? "var(--good-ink)" : "var(--critical)"}` }),
+      ]));
+    });
+    table.append(tbody);
+    host.append(el("details", { style: "margin-top:12px" }, [
+      el("summary", { class: "empty", text: "the same numbers as a table" }), table]));
+  }
+}
+
+function renderTraining(results) {
+  const host = document.getElementById("trainbody");
+  host.replaceChildren();
+  const t = results.train;
+  if (!t) { host.append(el("p", { class: "empty", text: "No training run yet." })); return; }
+  host.append(el("div", { class: "stat" }, [
+    el("div", {}, [el("div", { class: "k", text: "best validation loss" }),
+      el("div", { class: "v" }, [document.createTextNode(fmt(t.best_val_loss)),
+        el("small", { text: ` at epoch ${t.best_epoch}` })])]),
+    el("div", {}, [el("div", { class: "k", text: "training windows" }),
+      el("div", { class: "v", text: (t.n_train_windows || 0).toLocaleString() })]),
+    el("div", {}, [el("div", { class: "k", text: "device" }),
+      el("div", { class: "v", text: t.device || "n/a" })]),
+  ]));
+  const history = t.history || [];
+  if (history.length > 1) {
+    host.append(legend([{ name: "train", colour: "var(--series-1)" }, { name: "validation", colour: "var(--series-2)" }]));
+    host.append(lineChart([
+      { name: "train", values: history.map((h) => h.train_loss), colour: "var(--series-1)" },
+      { name: "validation", values: history.map((h) => h.val_loss), colour: "var(--series-2)" },
+    ], { xLabel: "epoch", yLabel: "loss" }));
+  }
+  host.append(el("p", { class: "empty", style: "margin-top:10px", text: "Validation loss says the fit is converging. It does not say the policy is useful. That is what the panel above is for." }));
+}
+
+function renderCorpus(results) {
+  const host = document.getElementById("corpusbody");
+  host.replaceChildren();
+  const q = results.quality, d = results.dataset;
+  if (!q) { host.append(el("p", { class: "empty", text: "No scored episodes yet." })); return; }
+  host.append(el("div", { class: "stat" }, [
+    el("div", {}, [el("div", { class: "k", text: "episodes" }), el("div", { class: "v", text: String(q.n_episodes) })]),
+    el("div", {}, [el("div", { class: "k", text: "mean quality" }), el("div", { class: "v", text: String(q.score.mean) })]),
+    el("div", {}, [el("div", { class: "k", text: "worst tenth" }), el("div", { class: "v", text: String(q.score.p10) })]),
+  ]));
+  const tiers = ["gold", "silver", "reject"];
+  host.append(barChart(tiers.map((t) => ({
+    label: t, value: (q.tiers || {})[t] || 0,
+    colour: t === "reject" ? "var(--critical)" : "var(--series-1)",
+  })), { rowHeight: 26, format: String, unit: " episodes" }));
+
+  if (d && d.splits) {
+    const table = el("table", {}, [el("thead", {}, el("tr", {}, [
+      el("th", { text: "split" }), el("th", { class: "num", text: "episodes" }),
+      el("th", { class: "num", text: "sessions" }), el("th", { class: "num", text: "steps" }),
+      el("th", { class: "num", text: "mean quality" })]))]);
+    const tbody = el("tbody");
+    for (const name of ["train", "val"]) {
+      const s = d.splits[name];
+      if (!s) continue;
+      tbody.append(el("tr", {}, [
+        el("td", { text: name }),
+        el("td", { class: "num", text: String(s.n_episodes) }),
+        el("td", { class: "num", text: String(s.n_sessions) }),
+        el("td", { class: "num", text: s.n_steps.toLocaleString() }),
+        el("td", { class: "num", text: s.mean_quality.toFixed(1) }),
+      ]));
+    }
+    table.append(tbody);
+    host.append(el("p", { class: "empty", style: "margin:14px 0 4px", text: "Splits are grouped by session, so no session appears on both sides." }));
+    host.append(table);
+  }
+}
+
+function renderSettings(state) {
+  const host = document.getElementById("settings");
+  host.replaceChildren();
+  const s = state.settings;
+  const pairs = [
+    ["robot", s.robot.name], ["joints", s.robot.n_joints], ["control rate", s.robot.control_hz + " Hz"],
+    ["epochs", s.train.epochs], ["action horizon", s.train.action_horizon],
+    ["batch size", s.train.batch_size], ["learning rate", s.train.lr],
+    ["hidden sizes", (s.train.hidden_sizes || []).join(" x ")], ["device", s.train.device],
+  ];
+  for (const [k, v] of pairs) {
+    host.append(el("dt", { text: k }));
+    host.append(el("dd", { text: String(v) }));
+  }
+  document.getElementById("paramspath").textContent = "Change these in " + s.params_path + ", then run again.";
+}
+
+// -- polling -----------------------------------------------------------------
+
+async function pullLog() {
+  const data = await api("/api/log?from=" + logCursor);
+  if (!data.lines.length) return;
+  const box = document.getElementById("log");
+  const stuck = box.scrollTop + box.clientHeight >= box.scrollHeight - 24;
+  for (const line of data.lines) {
+    const cls = line.startsWith("===") ? "hl" : (line.startsWith("FAILED") ? "bad" : null);
+    box.append(cls ? el("div", { class: cls, text: line }) : document.createTextNode(line + "\n"));
+  }
+  logCursor = data.next;
+  if (stuck) box.scrollTop = box.scrollHeight;
+}
+
+async function refresh() {
+  let state;
+  try { state = await api("/api/state"); }
+  catch (err) {
+    document.getElementById("project").textContent = "disconnected: " + err.message;
+    return;
+  }
+  document.getElementById("project").textContent = state.project.root;
+  document.getElementById("torchwarn").hidden = state.torch;
+  document.getElementById("runall").disabled = state.runner.busy;
+  document.getElementById("runall").textContent = state.runner.busy
+    ? "Running " + (state.runner.current || "…") : "Run everything";
+  document.getElementById("cancel").hidden = !state.runner.busy;
+  document.getElementById("cancel").disabled = state.runner.cancelling;
+
+  renderStages(state);
+  renderSettings(state);
+  // Results are re-rendered only when something changed, so a hover tooltip is
+  // not torn out from under the pointer on every poll.
+  const key = JSON.stringify(state.runner.runs) + String(state.runner.busy);
+  if (key !== lastRunnerKey) {
+    lastRunnerKey = key;
+    renderEval(state.results);
+    renderTraining(state.results);
+    renderCorpus(state.results);
+  }
+  await pullLog();
+}
+
+async function run_(stages) {
+  logCursor = 0;
+  document.getElementById("log").replaceChildren();
+  try {
+    await api("/api/run", { method: "POST", body: JSON.stringify({ stages }) });
+  } catch (err) {
+    document.getElementById("log").append(el("div", { class: "bad", text: err.message }));
+  }
+  lastRunnerKey = "";
+  await refresh();
+}
+
+document.getElementById("runall").addEventListener("click", async () => {
+  const state = await api("/api/state");
+  run_(state.default_run);
+});
+document.getElementById("cancel").addEventListener("click", () => api("/api/cancel", { method: "POST" }));
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

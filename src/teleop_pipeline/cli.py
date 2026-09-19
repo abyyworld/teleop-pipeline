@@ -328,6 +328,35 @@ def eval_cmd(
     table.add_row("windows / episodes", f"{m['n_windows']:,} / {m['n_episodes']}")
     console.print(table)
 
+    # Where in the horizon the policy earns its keep. A chunked policy that
+    # loses to persistence at offset 0 and wins further out is doing the right
+    # thing: committing to a plan instead of extrapolating the last command.
+    # The aggregate hides that, so print the curve whenever there is one.
+    offsets = m.get("chunk_mae_by_offset") or []
+    best_name = m.get("best_baseline")
+    best_curve = (m.get("baselines", {}).get(best_name) or {}).get("mae_by_offset") or []
+    if len(offsets) > 1 and len(best_curve) == len(offsets):
+        curve = Table(title=f"Error by horizon offset — policy vs {best_name}")
+        curve.add_column("offset", justify="right")
+        curve.add_column("policy", justify="right")
+        curve.add_column(str(best_name), justify="right")
+        curve.add_column("winner")
+        for k, (pol, base) in enumerate(zip(offsets, best_curve, strict=True)):
+            wins = pol < base
+            curve.add_row(
+                str(k),
+                f"{pol:.5f}",
+                f"{base:.5f}",
+                "[green]policy[/]" if wins else f"[red]{best_name}[/]",
+            )
+        console.print(curve)
+        if all(pol >= base for pol, base in zip(offsets, best_curve, strict=True)):
+            console.print(
+                f"[red]The policy loses to {best_name} at every offset.[/] It has not learned "
+                "anything that repeating the last action does not already give you. Action error "
+                "alone would have hidden this."
+            )
+
 
 @app.command()
 def report(
@@ -359,6 +388,18 @@ def report(
 
     path = report_mod.write(cfg.root / out, report_mod.render(quality, validation))
     console.print(f"[green]wrote[/] {path}")
+
+
+@app.command()
+def studio(
+    params: str = ParamsOpt,
+    port: int = typer.Option(8765, help="Port on 127.0.0.1. Use 0 for any free port."),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="Open the browser."),
+) -> None:
+    """Open the desktop app: run every stage and read the results in a window."""
+    from .studio.server import serve
+
+    serve(port=port, params=params, open_browser=open_browser)
 
 
 @app.command()

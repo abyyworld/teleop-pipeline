@@ -28,6 +28,26 @@ py -3.12 -m venv .venv
 
 Tested on Linux, macOS and Windows in CI.
 
+## The app
+
+Everything above is also a window, for the case where you are standing at a rig
+rather than sitting at a terminal:
+
+```bash
+teleop-pipeline studio          # or run the teleop-studio binary from Releases
+```
+
+It opens a local page with a button per stage and a Run everything button, a
+live log, and the results: corpus quality, the train and validation split, the
+training curve, and the evaluation. The evaluation panel leads with the only
+question that matters, which is whether the trained policy beats the baselines,
+and says so in the red case as plainly as in the green one.
+
+The server binds to 127.0.0.1 and requires a session token minted at startup, so
+another page you happen to have open cannot drive your pipeline. The binary
+bundles a CPU build of PyTorch, which is why it is a few hundred megabytes; a
+machine with a GPU should install the package instead and get the GPU build.
+
 That runs the entire pipeline on generated data, so the repository is assessable
 without access to a lab's demonstrations. Point `ingest.raw_dir` at a real teleop
 dump and delete the `synth` stage to use it for real.

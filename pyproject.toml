@@ -42,12 +42,18 @@ all = [
 
 [project.scripts]
 teleop-pipeline = "teleop_pipeline.cli:app"
+teleop-studio = "teleop_pipeline.studio.launch:main"
 
 [project.urls]
 Repository = "https://github.com/abyyworld/teleop-pipeline"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# The app's page is data, not code, so it has to be named explicitly or a wheel
+# ships a studio that serves a 500.
+[tool.setuptools.package-data]
+teleop_pipeline = ["studio/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
