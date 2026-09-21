@@ -31,6 +31,15 @@ py -3.12 -m venv .venv
 
 Tested on Linux, macOS and Windows in CI.
 
+## Running it on a real arm
+
+[docs/lab-quickstart.md](docs/lab-quickstart.md) is the version to follow at a
+rig: configuring the robot, the three methods you implement against its SDK,
+the dry run before anything can move, and how many episodes to collect before
+training is worth doing. `HardwareArm` already enforces the joint limits, the
+rate limit, gripper travel and stopping on a driver fault, so the arm-specific
+part is `JointDriver` and nothing else.
+
 ## The app
 
 Everything above is also a window, for the case where you are standing at a rig

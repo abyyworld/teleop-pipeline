@@ -8,6 +8,7 @@ code that handles a borrowed dataset.
 
 from .arm import Arm, ArmState, SimulatedArm
 from .device import Command, InputDevice, KeyboardDevice, ScriptedDevice
+from .hardware import DriverError, EchoDriver, HardwareArm, JointDriver
 from .recorder import (
     EpisodeRecording,
     record_episode,
@@ -19,8 +20,12 @@ __all__ = [
     "Arm",
     "ArmState",
     "Command",
+    "DriverError",
+    "EchoDriver",
     "EpisodeRecording",
+    "HardwareArm",
     "InputDevice",
+    "JointDriver",
     "KeyboardDevice",
     "ScriptedDevice",
     "SimulatedArm",

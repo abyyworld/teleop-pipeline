@@ -93,7 +93,7 @@ END_FAILURE = ","
 QUIT = "x"
 
 HELP = f"""\
-joint 0..n   {'  '.join(f'{k[0]}/{k[1]}' for k in KEYS)}   (raise/lower)
+joint 0..n   {"  ".join(f"{k[0]}/{k[1]}" for k in KEYS)}   (raise/lower)
 gripper      {GRIP_CLOSE} close   {GRIP_OPEN} open
 end episode  {END_SUCCESS} success   {END_FAILURE} failure
 quit         {QUIT}

@@ -210,9 +210,9 @@ def test_written_columns_match_what_ingest_aliases(cfg, tmp_path):
     assert expected_cmd <= columns
     # Every non-joint column must be one ingest already knows how to rename.
     leftover = columns - expected_joint - expected_cmd - {f"vel_{j}" for j in range(cfg.n_joints)}
-    assert leftover <= set(
-        COLUMN_ALIASES
-    ), f"ingest has no alias for {leftover - set(COLUMN_ALIASES)}"
+    assert leftover <= set(COLUMN_ALIASES), (
+        f"ingest has no alias for {leftover - set(COLUMN_ALIASES)}"
+    )
 
 
 def test_success_label_rides_in_the_filename(cfg, tmp_path):
@@ -364,3 +364,148 @@ def test_keyboard_drives_a_real_recording(cfg):
     assert rec.n_steps == len(script) - 1
     assert rec.frame["joint_0"].iloc[-1] > rec.frame["joint_0"].iloc[0]
     assert rec.frame["gripper_cmd"].iloc[-1] > 0
+
+
+# -- driving a real arm -------------------------------------------------------
+
+
+def _midrange(cfg):
+    """A pose every joint of the configured robot can legally hold."""
+    return 0.5 * (np.asarray(cfg.joint_lower) + np.asarray(cfg.joint_upper))
+
+
+def _hw(cfg, start=None):
+    """A hardware arm over an echo driver, parked mid-range by default.
+
+    Mid-range rather than zero: joint 4 of a Panda has an upper limit of
+    -0.0698 rad, so an all-zero start is already out of range for it.
+    """
+    from teleop_pipeline.teleop.hardware import EchoDriver, HardwareArm
+
+    if start is None:
+        start = _midrange(cfg)
+    driver = EchoDriver(cfg.n_joints, start=np.asarray(start, dtype=float))
+    return HardwareArm(cfg, driver), driver
+
+
+def test_hardware_arm_never_commands_past_a_joint_limit(cfg):
+    """The driver may happily accept an out-of-range target. It never sees one."""
+    arm, driver = _hw(cfg, start=np.asarray(cfg.joint_upper) - 1e-3)
+    huge = np.full(cfg.n_joints, 10.0)
+    arm.step(Command(joint_delta=huge, grip=0.0), dt=0.05)
+    assert np.all(driver.q <= np.asarray(cfg.joint_upper) + 1e-9)
+
+
+def test_hardware_arm_rate_limits_before_the_driver_sees_it(cfg):
+    arm, driver = _hw(cfg)
+    start = driver.q.copy()
+    applied, _ = arm.step(Command(joint_delta=np.full(cfg.n_joints, 5.0), grip=0.0), dt=0.05)
+    assert np.allclose(applied, cfg.action_limit)
+    assert np.allclose(driver.q - start, cfg.action_limit)
+
+
+def test_hardware_arm_records_the_censored_request_not_the_raw_one(cfg):
+    """A command the rig refused has to stay visible as refused in the data."""
+    arm, _ = _hw(cfg, start=np.asarray(cfg.joint_upper))
+    applied, _ = arm.step(Command(joint_delta=np.full(cfg.n_joints, 1.0), grip=0.0), dt=0.05)
+    assert np.allclose(applied, 0.0), "an arm already on its limit moved nowhere"
+
+
+def test_hardware_arm_reads_the_arm_rather_than_integrating_its_own_commands(cfg):
+    """A driver that lands somewhere else must be believed, not overwritten."""
+    from teleop_pipeline.teleop.hardware import EchoDriver, HardwareArm
+
+    class DriftingDriver(EchoDriver):
+        def write(self, q_target, grip_target):
+            super().write(np.asarray(q_target) - 0.01, grip_target)
+
+    driver = DriftingDriver(cfg.n_joints, start=_midrange(cfg))
+    arm = HardwareArm(cfg, driver)
+    arm.step(Command(joint_delta=np.full(cfg.n_joints, 0.02), grip=0.0), dt=0.05)
+    assert np.allclose(arm.state().q, driver.q), "state came from the command, not the arm"
+
+
+def test_hardware_arm_stops_and_raises_when_a_read_fails(cfg):
+    """Carrying on would record an episode the arm did not perform."""
+    from teleop_pipeline.teleop.hardware import DriverError, EchoDriver, HardwareArm
+
+    class FailsAfterFirstRead(EchoDriver):
+        def __init__(self, n, start):
+            super().__init__(n, start=start)
+            self.reads = 0
+
+        def read(self):
+            self.reads += 1
+            # Construction reads once; the failure has to land inside step().
+            if self.reads > 1:
+                raise OSError("bus timeout")
+            return super().read()
+
+    driver = FailsAfterFirstRead(cfg.n_joints, start=_midrange(cfg))
+    arm = HardwareArm(cfg, driver)
+    with pytest.raises(DriverError, match="could not read"):
+        arm.step(Command.idle(cfg.n_joints), dt=0.05)
+    assert driver.holds == 1, "the arm was left moving after a failed read"
+
+
+def test_hardware_arm_holds_when_a_write_fails(cfg):
+    from teleop_pipeline.teleop.hardware import DriverError, EchoDriver, HardwareArm
+
+    class WriteFails(EchoDriver):
+        def write(self, q_target, grip_target):
+            raise OSError("no ack")
+
+    driver = WriteFails(cfg.n_joints, start=_midrange(cfg))
+    arm = HardwareArm(cfg, driver)
+    with pytest.raises(DriverError, match="could not command"):
+        arm.step(Command.idle(cfg.n_joints), dt=0.05)
+    assert driver.holds == 1
+
+
+def test_hardware_arm_rejects_a_wrong_joint_count(cfg):
+    """Better to fail at the first read than to clip the wrong joints all session."""
+    from teleop_pipeline.teleop.hardware import DriverError, EchoDriver, HardwareArm
+
+    driver = EchoDriver(cfg.n_joints + 1)
+    with pytest.raises(DriverError, match="expected"):
+        HardwareArm(cfg, driver)
+
+
+def test_hardware_arm_refuses_to_start_outside_the_configured_limits(cfg):
+    """Clipping instead would leave that joint dead all session, looking like
+    broken hardware rather than a params.yaml copied from another robot."""
+    from teleop_pipeline.teleop.hardware import DriverError, EchoDriver, HardwareArm
+
+    driver = EchoDriver(cfg.n_joints, start=np.zeros(cfg.n_joints))
+    with pytest.raises(DriverError, match="outside the joint limits"):
+        HardwareArm(cfg, driver)
+
+
+def test_a_joint_resting_just_past_its_stop_is_tolerated(cfg):
+    """Encoder noise and a calibration offset are not a configuration error."""
+    from teleop_pipeline.teleop.hardware import EchoDriver, HardwareArm
+
+    start = np.asarray(cfg.joint_upper, dtype=float) + 0.01
+    HardwareArm(cfg, EchoDriver(cfg.n_joints, start=start))
+
+
+def test_hardware_arm_rejects_a_non_finite_reading(cfg):
+    from teleop_pipeline.teleop.hardware import DriverError, EchoDriver, HardwareArm
+
+    driver = EchoDriver(cfg.n_joints, start=_midrange(cfg))
+    driver.q[0] = np.nan
+    with pytest.raises(DriverError, match="non-finite"):
+        HardwareArm(cfg, driver)
+
+
+def test_hardware_arm_gripper_cannot_cross_its_travel_in_one_step(cfg):
+    arm, driver = _hw(cfg)
+    arm.step(Command(joint_delta=np.zeros(cfg.n_joints), grip=1.0), dt=0.01)
+    assert driver.grip < 1.0, "the gripper teleported, which no real rig does"
+
+
+def test_hardware_arm_satisfies_the_same_protocol_as_the_simulated_one(cfg):
+    from teleop_pipeline.teleop.arm import Arm
+
+    arm, _ = _hw(cfg)
+    assert isinstance(arm, Arm)
