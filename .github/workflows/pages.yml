@@ -1,32 +1,24 @@
 name: pages
 
-# Publishes site/ to GitHub Pages. The page is a single static file with no
-# build step and no external requests, so there is nothing to compile and
-# nothing that breaks when a CDN does.
+# The site is served straight from the default branch (Settings -> Pages,
+# "Deploy from a branch", main, root), so nothing here deploys it. What this
+# does is keep the page honest, because a branch deploy will happily publish a
+# broken one.
 
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["index.html", ".github/workflows/pages.yml"]
+  pull_request:
+    paths: ["index.html"]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-# One deployment at a time. A queued run is allowed to wait rather than being
-# cancelled, so a push that follows another still reaches the live site.
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
-  deploy:
+  check:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,15 +27,18 @@ jobs:
           # No external scripts, styles or fonts: the site has to render on a
           # lab machine with no outbound network, and a third-party request
           # from this page would also be a tracking vector.
-          if grep -nEi '<(script|link)[^>]+(src|href)="https?://' site/index.html; then
+          if grep -nEi '<(script|link)[^>]+(src|href)="https?://' index.html; then
             echo "external resource referenced above" >&2
             exit 1
           fi
+
+      - name: Every tag must be balanced
+        run: |
           python - <<'CHECK'
           import html.parser
           import sys
 
-          src = open("site/index.html", encoding="utf-8").read()
+          src = open("index.html", encoding="utf-8").read()
           stack = []
           void = {"br", "hr", "img", "meta", "link", "input", "source", "path",
                   "line", "circle", "rect", "use"}
@@ -66,13 +61,15 @@ jobs:
           print(f"page parses, {len(src)} bytes, every tag balanced")
           CHECK
 
-      # Pages has to be switched on once by hand, under Settings -> Pages, with
-      # the source set to GitHub Actions. The workflow token is not allowed to
-      # create the site itself ("Resource not accessible by integration"), and
-      # passing enablement: true only turns that into a hard failure here.
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      - name: The figures on the page must match the repositories
+        run: |
+          # The page quotes this repository's own line and test counts. They
+          # drift every time code lands, and a stale number on a public page is
+          # the kind of thing a reader checks.
+          lines=$(git ls-files '*.py' | xargs cat | wc -l | tr -d ' ')
+          claimed=$(grep -oE '[0-9,]+ lines &middot; [0-9]+ tests' index.html | head -1 | grep -oE '^[0-9,]+' | tr -d ',')
+          echo "repository: $lines lines, page claims: $claimed"
+          if [ "$lines" != "$claimed" ]; then
+            echo "the page's line count for this repository is stale" >&2
+            exit 1
+          fi
