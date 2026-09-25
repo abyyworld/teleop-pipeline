@@ -210,9 +210,9 @@ def test_written_columns_match_what_ingest_aliases(cfg, tmp_path):
     assert expected_cmd <= columns
     # Every non-joint column must be one ingest already knows how to rename.
     leftover = columns - expected_joint - expected_cmd - {f"vel_{j}" for j in range(cfg.n_joints)}
-    assert leftover <= set(COLUMN_ALIASES), (
-        f"ingest has no alias for {leftover - set(COLUMN_ALIASES)}"
-    )
+    assert leftover <= set(
+        COLUMN_ALIASES
+    ), f"ingest has no alias for {leftover - set(COLUMN_ALIASES)}"
 
 
 def test_success_label_rides_in_the_filename(cfg, tmp_path):
