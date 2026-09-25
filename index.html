@@ -25,6 +25,10 @@
   --muted:      #5C5449;
   --rule:       #DED8CC;
   --rule-firm:  #C4BCAC;
+  /* Marks a reader must be able to see: a control boundary, a legend
+     swatch, a numbered marker. Held to 3:1; the hairlines above are
+     decorative and are not. */
+  --rule-ui:    #8C8474;
   --accent:     #9E2B10;
   --accent-ink: #9E2B10;
   --band-fill:  rgba(158, 43, 16, 0.10);
@@ -52,6 +56,7 @@
     --muted:      #A39A8D;
     --rule:       #302C27;
     --rule-firm:  #443E36;
+    --rule-ui:    #7A7265;
     --accent:     #F0866A;
     --accent-ink: #F0866A;
     --band-fill:  rgba(240, 134, 106, 0.16);
@@ -68,6 +73,7 @@
   --muted:      #A39A8D;
   --rule:       #302C27;
   --rule-firm:  #443E36;
+  --rule-ui:    #7A7265;
   --accent:     #F0866A;
   --accent-ink: #F0866A;
   --band-fill:  rgba(240, 134, 106, 0.16);
@@ -209,7 +215,7 @@ a:hover { text-decoration-thickness: 2px; }
   text-transform: uppercase;
   color: var(--muted);
   background: none;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--rule-ui);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   cursor: pointer;
@@ -400,8 +406,15 @@ figure { margin: calc(var(--rhythm) * 1.6) 0 calc(var(--rhythm) * 1.6); }
 .legend .s2 { color: var(--ink); }
 .legend .s2 .swatch::before { border-top-style: dashed; }
 .legend .s3 .swatch {
-  background: var(--band-fill);
-  border: 1px solid var(--rule-firm);
+  /* Same fill and same hatch as the band it keys. A swatch that does not look
+     like its mark is worse than no swatch. */
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--accent-ink) 0 1px,
+    transparent 1px 8px
+  );
+  background-color: var(--band-fill);
+  border: 1px solid var(--rule-ui);
   height: 0.85rem;
 }
 .legend .s3 .swatch::before { content: none; }
@@ -420,13 +433,17 @@ figure { margin: calc(var(--rhythm) * 1.6) 0 calc(var(--rhythm) * 1.6); }
 .s1dot   { fill: var(--accent-ink); }
 .s2dot   { fill: var(--paper); stroke: var(--ink); }
 .bandfill{ fill: var(--band-fill); }
-.hatch   { stroke: var(--accent-ink); stroke-width: 0.8; stroke-opacity: 0.32; }
+/* Centred in the 8-unit tile, not on its edge: a stroke on the boundary is
+   half clipped and the neighbouring tile does not fill it back in. */
+.hatch   { stroke: var(--accent-ink); stroke-width: 1; stroke-opacity: 0.55; }
 .lab1    { fill: var(--accent-ink); }
 .lab2    { fill: var(--ink); }
 
 /* ---------- the readout under the plot ---------- */
 
-.readout { margin-top: calc(var(--rhythm) * 0.9); }
+/* The caption binds to the plot above it, the readout is a separate exhibit
+   below. The spacing has to say so, or the caption reads as the table's. */
+.readout { margin-top: calc(var(--rhythm) * 1.45); }
 .readout .tcaption { margin-bottom: calc(var(--rhythm) * 0.45); }
 table.rdt {
   min-width: 34rem;
@@ -477,7 +494,7 @@ figcaption {
   font-size: 0.875rem;
   line-height: 1.55;
   color: var(--muted);
-  margin-top: calc(var(--rhythm) * 0.7);
+  margin-top: calc(var(--rhythm) * 0.55);
   max-width: 34rem;
   text-wrap: pretty;
 }
@@ -677,7 +694,7 @@ code {
   font-size: 0.6875rem;
   font-weight: 700;
   color: var(--accent-ink);
-  border: 1px solid var(--rule-firm);
+  border: 1px solid var(--rule-ui);
   border-radius: 999px;
   width: 1.45rem;
   height: 1.45rem;
@@ -760,7 +777,7 @@ footer .sheet { padding-block: calc(var(--rhythm) * 1.2) calc(var(--rhythm) * 2.
   <div class="countsblock wide anchored" style="--mark-top: 1.5em;">
     <span class="mark">Counts</span>
     <div class="counts">
-      <div><span class="n">993</span><span class="k">Tests</span></div>
+      <div><span class="n">726</span><span class="k">Test functions</span></div>
       <div><span class="n">9</span><span class="k">Open repositories</span></div>
       <div><span class="n">3</span><span class="k">Negative results published</span></div>
       <div><span class="n zero">0</span><span class="k">Real-hardware results</span></div>
@@ -828,7 +845,7 @@ footer .sheet { padding-block: calc(var(--rhythm) * 1.2) calc(var(--rhythm) * 2.
           <defs>
             <pattern id="figHatch" width="8" height="8" patternUnits="userSpaceOnUse"
                      patternTransform="rotate(-45)">
-              <line class="hatch" x1="0" y1="0" x2="0" y2="8"/>
+              <line class="hatch" x1="4" y1="0" x2="4" y2="8"/>
             </pattern>
           </defs>
 
@@ -930,6 +947,12 @@ footer .sheet { padding-block: calc(var(--rhythm) * 1.2) calc(var(--rhythm) * 2.
           <text class="tlabel" x="530" y="93">Lower is better</text>
         </svg>
       </div>
+      <figcaption>
+        <span class="lab">Figure 1.</span> Mean absolute error against prediction horizon
+        offset. Lower is better, so the policy line sitting above the baseline means it is
+        worse. Measured on 55 held-out episodes, 8,054 windows, split by session so no
+        session appears on both sides.
+      </figcaption>
       <div class="readout">
         <p class="tcaption"><span class="lab">Readout.</span> The two series at every
         offset, in radians, and the shaded margin between them. Positive margin means
@@ -947,12 +970,6 @@ footer .sheet { padding-block: calc(var(--rhythm) * 1.2) calc(var(--rhythm) * 2.
           </table>
         </div>
       </div>
-      <figcaption>
-        <span class="lab">Figure 1.</span> Mean absolute error against prediction horizon
-        offset. Lower is better, so the policy line sitting above the baseline means it is
-        worse. Measured on 55 held-out episodes, 8,054 windows, split by session so no
-        session appears on both sides.
-      </figcaption>
     </figure>
 
     <div class="tablewrap wide anchored" style="--mark-top: 0.3em;">
@@ -1015,7 +1032,7 @@ footer .sheet { padding-block: calc(var(--rhythm) * 1.2) calc(var(--rhythm) * 2.
         <div class="rline">
           <a href="https://github.com/abyyworld/teleop-pipeline">teleop-pipeline</a>
           <span class="leader" aria-hidden="true"></span>
-          <span class="tests"><span data-check="tests">139</span> tests</span>
+          <span class="tests"><span data-check="tests">136</span> tests</span>
         </div>
         <p>Raw operator sessions in, a schema-checked, resampled, quality-scored and
         content-addressed corpus out, with every trained policy traceable to the exact
@@ -1195,7 +1212,10 @@ footer .sheet { padding-block: calc(var(--rhythm) * 1.2) calc(var(--rhythm) * 2.
   <div class="sheet">
     <p class="colophon">
       Work in progress, by <a href="https://github.com/abyyworld">abyyworld</a>.
-      Figures were produced by running the code, not counted from source.
+      Test counts are functions defined across the nine repositories, counted with
+      <code>grep -rhcE "^ *def test_" tests/*.py</code>, so the figures above sum to the
+      total and either can be reproduced in one command. The evaluation numbers came from
+      running the pipeline.
       <a href="https://github.com/abyyworld/teleop-pipeline/blob/main/index.html">Source for this page</a>.
     </p>
   </div>

@@ -36,22 +36,22 @@ jobs:
 
       - name: The figures the page quotes must still be true
         run: |
-          # The page states a test count for this repository, and it moves every
-          # time code lands. Reading it from an explicit marker rather than from
-          # prose means a redesign cannot silently disconnect this check:
-          #   <span data-check="tests">139</span>
-          pip install -e ".[dev]"
-          collected=$(python -m pytest --collect-only -q 2>/dev/null \
-            | awk -F': ' '/: [0-9]+$/ {s+=$2} END {print s}')
+          # The page states a test count for this repository and a total across
+          # all nine, and the two have to reconcile. Both are counted the same
+          # way, with the command the page itself prints, so a reader can
+          # reproduce either in one line. Reading the claim from an explicit
+          # marker rather than from prose means a redesign cannot silently
+          # disconnect this check.
+          counted=$(grep -rhcE "^ *def test_" tests/*.py | paste -sd+ | bc)
           claimed=$(grep -oE 'data-check="tests"[^>]*>[0-9,]+' index.html \
             | grep -oE '[0-9,]+$' | tr -d ',')
-          echo "collected=$collected claimed=$claimed"
+          echo "counted=$counted claimed=$claimed"
           if [ -z "$claimed" ]; then
             echo 'index.html carries no data-check="tests" marker, so its test' >&2
-            echo 'count cannot be verified. Add the marker or remove the claim.' >&2
+            echo 'count cannot be verified. Add the marker or drop the claim.' >&2
             exit 1
           fi
-          if [ "$collected" != "$claimed" ]; then
-            echo "the page says $claimed tests, the suite collects $collected" >&2
+          if [ "$counted" != "$claimed" ]; then
+            echo "the page says $claimed test functions, the tree has $counted" >&2
             exit 1
           fi
