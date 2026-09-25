@@ -3,402 +3,1239 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Autonomy for remote handling</title>
-<meta name="description" content="Building the data and the evidence that would let remote handling in hazardous environments become autonomous. Work log, results including the negative ones, and the code.">
+<title>Autonomy for remote handling in hazardous environments</title>
+<meta name="description" content="A work log. Building the data and the evidence that would let remote handling in hazardous environments become autonomous. Results reported whichever way they go, including the negative ones.">
+<meta name="color-scheme" content="light dark">
 <meta property="og:title" content="Autonomy for remote handling in hazardous environments">
 <meta property="og:description" content="Nine open repositories, one honest evaluation standard, and results reported whichever way they go.">
-<meta property="og:type" content="website">
+<meta property="og:type" content="article">
 <style>
+/* ============================================================
+   Ink and paper. One accent. Everything else is typography.
+   ============================================================ */
+
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --band: #f3f5f7;
-  --ink: #14171a;
-  --muted: #5b6470;
-  --rule: #d8dde3;
-  --accent: #1f4e79;
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --critical: #d03b3b;
-  --maxw: 760px;
+
+  /* Light: warm paper, warm near-black ink, deep vermilion accent.
+     Measured contrast, see the colour notes at the end of this file. */
+  --paper:      #FBFAF6;
+  --panel:      #F2EEE5;
+  --ink:        #1A1714;
+  --muted:      #5C5449;
+  --rule:       #DED8CC;
+  --rule-firm:  #C4BCAC;
+  --accent:     #9E2B10;
+  --accent-ink: #9E2B10;
+  --band-fill:  rgba(158, 43, 16, 0.10);
+  --select:     rgba(158, 43, 16, 0.14);
+  --hair:       #E7E2D7;
+
+  --measure: 36rem;          /* ~64 characters at the body size */
+  --wide:    43rem;
+  --margin-col: 7rem;
+  --gap:     3rem;
+  --pad:     clamp(1.25rem, 5vw, 2.5rem);
+  --rhythm:  1.75rem;        /* the vertical unit; everything is a multiple */
+
+  --serif: ui-serif, "Iowan Old Style", "Charter", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono:  ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0f1215;
-    --band: #171a1e;
-    --ink: #e8eaed;
-    --muted: #9ba3ae;
-    --rule: #262b31;
-    --accent: #8fc0f0;
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --critical: #e66767;
+    --paper:      #13120F;
+    --panel:      #1B1915;
+    --ink:        #EDE8DE;
+    --muted:      #A39A8D;
+    --rule:       #302C27;
+    --rule-firm:  #443E36;
+    --accent:     #F0866A;
+    --accent-ink: #F0866A;
+    --band-fill:  rgba(240, 134, 106, 0.16);
+    --select:     rgba(240, 134, 106, 0.22);
+    --hair:       #26231F;
   }
 }
+
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0f1215; --band: #171a1e; --ink: #e8eaed; --muted: #9ba3ae;
-  --rule: #262b31; --accent: #8fc0f0; --series-1: #3987e5; --series-2: #d95926; --critical: #e66767;
+  --paper:      #13120F;
+  --panel:      #1B1915;
+  --ink:        #EDE8DE;
+  --muted:      #A39A8D;
+  --rule:       #302C27;
+  --rule-firm:  #443E36;
+  --accent:     #F0866A;
+  --accent-ink: #F0866A;
+  --band-fill:  rgba(240, 134, 106, 0.16);
+  --select:     rgba(240, 134, 106, 0.22);
+  --hair:       #26231F;
 }
 
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-/* A single long token, such as the macOS quarantine command, is enough to make
-   the whole page wider than a phone. Nothing here may set the page width. */
-h1, h2, h3, p, li, td, th { overflow-wrap: break-word; }
-code { overflow-wrap: anywhere; font-size: 0.92em; }
-svg, img { max-width: 100%; }
+/* ---------- reset and page ---------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  hanging-punctuation: first allow-end last;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
+}
+
 body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font: 16px/1.65 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(1.0625rem, 1rem + 0.28vw, 1.1875rem);
+  line-height: 1.62;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
-.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 16px; }
-a { color: var(--accent); text-underline-offset: 2px; }
+
+::selection { background: var(--select); color: var(--ink); }
+
+/* Nothing on this page may set the page width. A single long token,
+   such as the macOS quarantine command, would otherwise do it. */
+h1, h2, h3, p, li, td, th, dd, dt, figcaption { overflow-wrap: break-word; }
+code, .breakable { overflow-wrap: anywhere; }
+svg, img { max-width: 100%; }
+
+a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 0.18em; }
 a:hover { text-decoration-thickness: 2px; }
-
-header { border-bottom: 1px solid var(--rule); }
-header .wrap { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; padding-top: 18px; padding-bottom: 18px; }
-header strong { font-size: 15px; letter-spacing: -0.01em; }
-header nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; flex-wrap: wrap; }
-header nav a { color: var(--muted); text-decoration: none; }
-header nav a:hover { color: var(--ink); }
-
-h1 { font-size: clamp(28px, 6vw, 40px); line-height: 1.15; letter-spacing: -0.025em; margin: 44px 0 0; }
-h2 { font-size: clamp(20px, 4vw, 24px); letter-spacing: -0.02em; margin: 52px 0 12px; }
-h3 { font-size: 16px; margin: 0 0 4px; }
-.lede { font-size: clamp(17px, 2.6vw, 19px); color: var(--muted); margin: 14px 0 0; }
-p { margin: 0 0 14px; }
-section { padding-bottom: 8px; }
-
-.band { background: var(--band); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin: 44px 0; }
-.band .wrap { padding-top: 28px; padding-bottom: 28px; }
-
-.stats { display: flex; gap: 28px; flex-wrap: wrap; margin: 26px 0 0; }
-.stats div { min-width: 0; }
-.stats .n { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.stats .k { font-size: 12.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 15px; margin: 8px 0 4px; }
-th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
-th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
-td.num, th.num { text-align: right; }
-tr:last-child td { border-bottom: 0; }
-.scroll { overflow-x: auto; }
-
-ul.plain { list-style: none; padding: 0; margin: 0; }
-ul.plain > li { padding: 12px 0; border-top: 1px solid var(--rule); }
-ul.plain > li:first-child { border-top: 0; }
-.repo { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
-.repo a { font-weight: 600; text-decoration: none; }
-.repo .meta { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; margin-left: auto; white-space: nowrap; }
-.repo p { flex-basis: 100%; margin: 2px 0 0; color: var(--muted); font-size: 15px; }
-
-.note { border-left: 3px solid var(--critical); padding: 2px 0 2px 14px; margin: 18px 0; }
-.note b { color: var(--critical); }
-
-.dl { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 6px; }
-.dl a {
-  display: inline-block; text-decoration: none; font-size: 14.5px; font-weight: 550;
-  border: 1px solid var(--rule); border-radius: 8px; padding: 8px 14px; color: var(--ink);
+:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 3px;
+  border-radius: 1px;
 }
-.dl a:hover { border-color: var(--accent); color: var(--accent); }
-.dl a span { color: var(--muted); font-weight: 400; }
 
-figure { margin: 18px 0; }
-.chart { overflow-x: auto; }
-.chart svg { min-width: 460px; }
-figcaption { color: var(--muted); font-size: 13.5px; margin-top: 8px; }
-.legend { display: flex; gap: 16px; font-size: 13.5px; color: var(--muted); margin-bottom: 6px; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.legend i { width: 14px; height: 2px; border-radius: 1px; }
+/* ---------- the sheet: a fat left margin holds the apparatus ---------- */
 
-footer { border-top: 1px solid var(--rule); margin-top: 56px; }
-footer .wrap { padding-top: 24px; padding-bottom: 44px; color: var(--muted); font-size: 14px; }
+.sheet {
+  margin-inline: auto;
+  padding-inline: var(--pad);
+  max-width: calc(var(--wide) + 2 * var(--pad));
+}
+@media (min-width: 70rem) {
+  .sheet {
+    max-width: calc(var(--margin-col) + var(--gap) + var(--wide) + 2 * var(--pad));
+    padding-left: calc(var(--margin-col) + var(--gap) + var(--pad));
+  }
+}
+
+.col  { max-width: var(--measure); }
+.wide { max-width: var(--wide); }
+
+/* Marginalia. Static above the element on narrow screens, out in the
+   margin on wide ones. */
+.mark {
+  display: block;
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+}
+.anchored { position: relative; }
+@media (min-width: 70rem) {
+  .anchored > .mark {
+    position: absolute;
+    left: calc(-1 * (var(--margin-col) + var(--gap)));
+    top: var(--mark-top, 0.62em);
+    width: var(--margin-col);
+    text-align: right;
+    margin: 0;
+    line-height: 1.3;
+  }
+  /* A section carries its own top padding, so its mark has to clear it
+     and land on the first line of the heading. */
+  section.anchored > .mark { top: calc(var(--rhythm) * 2.4 + 0.5em); }
+}
+
+/* ---------- masthead ---------- */
+
+.skiplink {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 20;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--rule-firm);
+  padding: 0.55rem 0.85rem;
+  text-decoration: none;
+}
+.skiplink:focus { left: 0.75rem; top: 0.75rem; }
+
+.masthead { border-bottom: 1px solid var(--rule); }
+.masthead .sheet {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding-block: 0.9rem;
+}
+.running .sep { color: var(--accent-ink); padding: 0 0.15em; }
+.running {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0;
+}
+.theme-toggle {
+  display: none;
+  margin-left: auto;
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+:root[data-js] .theme-toggle { display: inline-block; }
+.theme-toggle:hover { color: var(--ink); border-color: var(--rule-firm); }
+
+/* ---------- title block ---------- */
+
+.titleblock { padding-top: calc(var(--rhythm) * 2.25); }
+
+.kicker {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 calc(var(--rhythm) * 0.75);
+}
+
+h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.35rem, 1.5rem + 3.6vw, 3.55rem);
+  line-height: 1.05;
+  letter-spacing: -0.021em;
+  margin: 0;
+  max-width: 17ch;
+  text-wrap: balance;
+}
+
+.lede {
+  font-size: clamp(1.2rem, 1.05rem + 0.75vw, 1.45rem);
+  line-height: 1.48;
+  margin: calc(var(--rhythm) * 1.15) 0 0;
+  max-width: 32rem;
+  text-wrap: pretty;
+}
+.lede .opening {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.06em;
+  font-size: 1.04em;
+}
+
+.byline {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin: calc(var(--rhythm) * 1.1) 0 0;
+  letter-spacing: 0.02em;
+}
+.byline a { color: var(--muted); text-decoration-color: var(--rule-firm); }
+.byline a:hover { color: var(--accent-ink); }
+
+/* ---------- the counts ---------- */
+
+.countsblock { margin-top: calc(var(--rhythm) * 2); }
+.counts {
+  margin: 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 46rem) {
+  .counts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.counts > div {
+  padding: calc(var(--rhythm) * 0.7) 0 calc(var(--rhythm) * 0.7) 1rem;
+  border-left: 1px solid var(--hair);
+  min-width: 0;
+}
+.counts > div:first-child { padding-left: 0; border-left: 0; }
+@media (min-width: 46rem) {
+  .counts > div:nth-child(1) { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 45.999rem) {
+  .counts > div:nth-child(odd) { padding-left: 0; border-left: 0; }
+  .counts > div:nth-child(1), .counts > div:nth-child(2) { border-bottom: 1px solid var(--hair); }
+}
+.counts .n {
+  font-family: var(--serif);
+  font-size: clamp(2rem, 1.4rem + 2.1vw, 2.6rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+  display: block;
+}
+.counts .zero { color: var(--accent-ink); }
+.counts .k {
+  display: block;
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.6rem;
+  line-height: 1.35;
+}
+
+/* ---------- contents ---------- */
+
+.contents { margin: calc(var(--rhythm) * 1.6) 0 0; }
+.contents ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--sans);
+  font-size: 0.875rem;
+}
+.contents li { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.42rem 0; }
+.contents .no {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+  width: 1.5rem;
+}
+.contents a { color: var(--ink); text-decoration: none; flex: none; max-width: calc(100% - 5rem); }
+.contents a:hover { color: var(--accent-ink); text-decoration: underline; }
+.contents .leader {
+  flex: 1 1 auto;
+  border-bottom: 1px dotted var(--rule-firm);
+  transform: translateY(-0.3em);
+  min-width: 1rem;
+}
+
+/* ---------- sections ---------- */
+
+section { padding-top: calc(var(--rhythm) * 2.4); }
+
+h2 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(1.5rem, 1.25rem + 1.05vw, 1.95rem);
+  line-height: 1.16;
+  letter-spacing: -0.014em;
+  margin: 0 0 calc(var(--rhythm) * 0.9);
+  max-width: 22ch;
+  text-wrap: balance;
+}
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.12rem;
+  line-height: 1.32;
+  letter-spacing: -0.005em;
+  margin: calc(var(--rhythm) * 1.6) 0 calc(var(--rhythm) * 0.5);
+  max-width: 30ch;
+}
+
+p { margin: 0 0 var(--rhythm); text-wrap: pretty; }
+p:last-child { margin-bottom: 0; }
+
+.sub {
+  font-size: 0.9375rem;
+  line-height: 1.58;
+  color: var(--muted);
+}
+
+/* ---------- figure ---------- */
+
+figure { margin: calc(var(--rhythm) * 1.6) 0 calc(var(--rhythm) * 1.6); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  margin: 0 0 calc(var(--rhythm) * 0.6);
+  padding-bottom: calc(var(--rhythm) * 0.5);
+  border-bottom: 1px solid var(--hair);
+}
+.legend span { display: inline-flex; align-items: center; gap: 0.5rem; }
+.legend .swatch { flex: none; width: 1.6rem; height: 0.5rem; position: relative; }
+.legend .swatch::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  border-top: 2px solid currentColor;
+}
+.legend .s1 { color: var(--accent-ink); }
+.legend .s2 { color: var(--ink); }
+.legend .s2 .swatch::before { border-top-style: dashed; }
+.legend .s3 .swatch {
+  background: var(--band-fill);
+  border: 1px solid var(--rule-firm);
+  height: 0.85rem;
+}
+.legend .s3 .swatch::before { content: none; }
+
+.plot { overflow-x: auto; overscroll-behavior-x: contain; }
+.plot svg { display: block; min-width: 34rem; width: 100%; height: auto; }
+
+.axis    { stroke: var(--muted); stroke-width: 1; }
+.grid    { stroke: var(--hair); stroke-width: 1; }
+.tick    { stroke: var(--muted); stroke-width: 1; }
+.tlabel  { font-family: var(--sans); font-size: 12px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.atitle  { font-family: var(--sans); font-size: 12px; font-weight: 600; fill: var(--muted); letter-spacing: 0.06em; }
+.dlabel  { font-family: var(--sans); font-size: 12.5px; font-weight: 600; }
+.s1line  { stroke: var(--accent-ink); }
+.s2line  { stroke: var(--ink); }
+.s1dot   { fill: var(--accent-ink); }
+.s2dot   { fill: var(--paper); stroke: var(--ink); }
+.bandfill{ fill: var(--band-fill); }
+.hatch   { stroke: var(--accent-ink); stroke-width: 0.8; stroke-opacity: 0.32; }
+.lab1    { fill: var(--accent-ink); }
+.lab2    { fill: var(--ink); }
+
+/* ---------- the readout under the plot ---------- */
+
+.readout { margin-top: calc(var(--rhythm) * 0.9); }
+.readout .tcaption { margin-bottom: calc(var(--rhythm) * 0.45); }
+table.rdt {
+  min-width: 34rem;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: -0.005em;
+}
+.rdt thead th {
+  padding: 0 0 0.45rem 0.62rem;
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 0.6875rem;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.rdt thead th:first-child {
+  padding-left: 0;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.6875rem;
+}
+.rdt tbody th {
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+  padding: 0.5rem 0.9rem 0.5rem 0;
+  border-bottom: 1px solid var(--hair);
+}
+.rdt tbody td {
+  text-align: right;
+  color: var(--ink);
+  padding: 0.5rem 0 0.5rem 0.62rem;
+  border-bottom: 1px solid var(--hair);
+}
+.rdt tbody tr:last-child th,
+.rdt tbody tr:last-child td { border-bottom: 1px solid var(--rule-firm); }
+.rdt tbody .gap th,
+.rdt tbody .gap td { color: var(--accent-ink); }
+.rdt tbody .gap td { font-weight: 600; }
+
+figcaption {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted);
+  margin-top: calc(var(--rhythm) * 0.7);
+  max-width: 34rem;
+  text-wrap: pretty;
+}
+figcaption .lab {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ---------- table ---------- */
+
+.tablewrap { margin: calc(var(--rhythm) * 1.6) 0; }
+.tcaption {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0 0 calc(var(--rhythm) * 0.5);
+  max-width: 34rem;
+}
+.tcaption .lab {
+  font-variant-caps: small-caps;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--ink);
+}
+.scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 22rem;
+  font-size: 0.9375rem;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+thead th {
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: 0 1.1rem 0.5rem 0;
+  border-bottom: 1px solid var(--ink);
+}
+tbody td {
+  padding: 0.62rem 1.1rem 0.62rem 0;
+  border-bottom: 1px solid var(--hair);
+  vertical-align: baseline;
+}
+tbody tr:last-child td { border-bottom: 1px solid var(--rule-firm); }
+th.num, td.num { text-align: right; padding-right: 1.6rem; }
+tbody td:last-child { padding-right: 0; color: var(--muted); }
+tbody tr:first-child td:first-child { font-weight: 600; }
+
+/* ---------- the callout ---------- */
+
+/* A pull quote, set the way a magazine sets one: the full measure of the
+   sheet, a rule above it, and nothing else competing on the line. */
+.callout {
+  margin: calc(var(--rhythm) * 2.8) 0;
+  padding: calc(var(--rhythm) * 1.45) 0 calc(var(--rhythm) * 1.7);
+  border-top: 2px solid var(--accent-ink);
+  border-bottom: 1px solid var(--rule);
+  max-width: var(--wide);
+}
+@media (min-width: 70rem) {
+  .callout {
+    margin-left: calc(-1 * (var(--margin-col) + var(--gap)));
+    width: calc(var(--margin-col) + var(--gap) + var(--wide));
+    max-width: none;
+  }
+}
+.callout .cmark {
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+  margin: 0 0 calc(var(--rhythm) * 0.72);
+}
+.callout .lead {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(1.72rem, 1.05rem + 3.1vw, 2.85rem);
+  line-height: 1.09;
+  letter-spacing: -0.026em;
+  margin: 0;
+  max-width: none;
+  text-wrap: balance;
+}
+.callout .after {
+  margin: calc(var(--rhythm) * 1.05) 0 0;
+  font-size: clamp(1.05rem, 1rem + 0.42vw, 1.2rem);
+  line-height: 1.52;
+  color: var(--muted);
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+.callout .after em { font-style: italic; color: var(--ink); }
+
+/* ---------- repositories ---------- */
+
+.repos { list-style: none; margin: calc(var(--rhythm) * 1.2) 0 0; padding: 0; }
+.repos > li { padding: calc(var(--rhythm) * 0.75) 0; border-top: 1px solid var(--hair); }
+.repos > li:first-child { border-top: 1px solid var(--rule-firm); }
+.repos > li:last-child { border-bottom: 1px solid var(--rule-firm); }
+.rline { display: flex; align-items: baseline; gap: 0.6rem; }
+.rline a {
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule-firm);
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rline a:hover { color: var(--accent-ink); border-bottom-color: var(--accent-ink); }
+.rline .leader {
+  flex: 1 1 0.5rem;
+  border-bottom: 1px dotted var(--rule);
+  transform: translateY(-0.3em);
+  min-width: 0.75rem;
+}
+.rline .tests {
+  flex: none;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.repos p {
+  margin: 0.45rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 44ch;
+}
+
+/* ---------- downloads ---------- */
+
+.downloads { list-style: none; margin: calc(var(--rhythm) * 1.1) 0 var(--rhythm); padding: 0; border-top: 1px solid var(--rule-firm); }
+.downloads li { border-bottom: 1px solid var(--hair); }
+.downloads li:last-child { border-bottom: 1px solid var(--rule-firm); }
+.downloads a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.8rem;
+  padding: calc(var(--rhythm) * 0.6) 0.6rem calc(var(--rhythm) * 0.6) 0;
+  text-decoration: none;
+  color: var(--ink);
+  transition: background-color 120ms ease;
+}
+.downloads a:hover { background: var(--panel); }
+.downloads .os { font-weight: 600; font-size: 1rem; flex: none; min-width: 5.5rem; }
+.downloads a:hover .os { color: var(--accent-ink); }
+.downloads .spec { font-family: var(--sans); font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.downloads .file {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-left: auto;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- checks and caveats ---------- */
+
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--panel);
+  border: 1px solid var(--hair);
+  border-radius: 3px;
+  padding: 0.1em 0.34em;
+}
+
+.checks { list-style: none; margin: var(--rhythm) 0; padding: 0; counter-reset: check; }
+.checks > li {
+  position: relative;
+  padding-left: 2.2rem;
+  margin-bottom: calc(var(--rhythm) * 0.85);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  counter-increment: check;
+}
+.checks > li::before {
+  content: counter(check);
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  font-family: var(--sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--accent-ink);
+  border: 1px solid var(--rule-firm);
+  border-radius: 999px;
+  width: 1.45rem;
+  height: 1.45rem;
+  display: grid;
+  place-items: center;
+}
+.checks strong { font-weight: 600; }
+
+.nots { list-style: none; margin: calc(var(--rhythm) * 1.2) 0; padding: 0; }
+.nots > li {
+  position: relative;
+  padding: calc(var(--rhythm) * 0.62) 0 calc(var(--rhythm) * 0.62) 2rem;
+  border-top: 1px solid var(--hair);
+  max-width: 40ch;
+}
+.nots > li:first-child { border-top: 1px solid var(--rule-firm); }
+.nots > li:last-child { border-bottom: 1px solid var(--rule-firm); }
+.nots > li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(var(--rhythm) * 0.62 + 0.72em);
+  width: 0.85rem;
+  border-top: 2px solid var(--accent-ink);
+}
+.nots strong { font-weight: 600; }
+.nots span { color: var(--muted); }
+
+.closing {
+  margin-top: calc(var(--rhythm) * 1.4);
+  font-size: 1.05em;
+  line-height: 1.55;
+  max-width: 34rem;
+}
+
+/* ---------- footer ---------- */
+
+footer { margin-top: calc(var(--rhythm) * 3); border-top: 1px solid var(--ink); }
+footer .sheet { padding-block: calc(var(--rhythm) * 1.2) calc(var(--rhythm) * 2.5); }
+.colophon {
+  font-family: var(--sans);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--muted);
+  max-width: 36rem;
+  margin: 0;
+}
+.colophon a { color: var(--muted); text-decoration-color: var(--rule-firm); }
+.colophon a:hover { color: var(--accent-ink); }
 </style>
 </head>
 <body>
 
-<header>
-  <div class="wrap">
-    <strong>Remote handling autonomy</strong>
-    <nav>
-      <a href="#result">Result</a>
-      <a href="#code">Code</a>
-      <a href="#app">App</a>
-      <a href="#open">Open questions</a>
-    </nav>
+<a class="skiplink" href="#main">Skip to the text</a>
+
+<header class="masthead">
+  <div class="sheet">
+    <p class="running">Remote handling autonomy <span class="sep" aria-hidden="true">/</span> work log</p>
+    <button type="button" class="theme-toggle" id="themeToggle" aria-pressed="false">Dark</button>
   </div>
 </header>
 
-<main>
-<div class="wrap">
-  <h1>Autonomy for remote handling in hazardous environments</h1>
-  <p class="lede">
-    Decommissioning is done by remote operation because a human cannot be in the room.
-    The labour is not expensive, it is unavailable at any price. Autonomy would change
-    that, and the thing standing in the way is not capability. It is that nobody can
-    demonstrate a policy is safe to run in a cell.
-  </p>
-</div>
+<main id="main">
+<div class="sheet">
 
-<div class="wrap">
-  <section>
-    <h2>The gap</h2>
-    <p>
-      Every task in a sealed cell is performed by a person driving a manipulator through
-      a screen, slowly, one operator to one machine. Dose limits cap the hours available
-      absolutely, so automating this is not displacing a worker. It is creating capacity
-      that does not otherwise exist.
+  <div class="titleblock">
+    <p class="kicker">Work log</p>
+    <h1>Autonomy for remote handling in hazardous environments</h1>
+    <p class="lede">
+      <span class="opening">Decommissioning is done by remote operation</span> because a
+      human cannot be in the room. The labour is not expensive, it is unavailable at any
+      price. Autonomy would change that, and the thing standing in the way is not
+      capability. It is that nobody can demonstrate a policy is safe to run in a cell.
     </p>
-    <p>
-      There is no accepted evidence standard for when a learned policy may run in that
-      setting, and almost no real-hardware data to build one from. This work is an
-      attempt at both: collect demonstrations from the operation that is already
-      happening, and prove policy quality to a standard a regulator could accept.
+    <p class="byline">
+      By <a href="https://github.com/abyyworld">abyyworld</a>. One person, in progress.
     </p>
-  </section>
-</div>
+  </div>
 
-<div class="band">
-  <div class="wrap">
-    <div class="stats">
-      <div><div class="n">54,093</div><div class="k">lines of Python</div></div>
-      <div><div class="n">968</div><div class="k">tests</div></div>
-      <div><div class="n">9</div><div class="k">open repositories</div></div>
-      <div><div class="n">0</div><div class="k">real-hardware results</div></div>
+  <div class="countsblock wide anchored" style="--mark-top: 1.5em;">
+    <span class="mark">Counts</span>
+    <div class="counts">
+      <div><span class="n">993</span><span class="k">Tests</span></div>
+      <div><span class="n">9</span><span class="k">Open repositories</span></div>
+      <div><span class="n">3</span><span class="k">Negative results published</span></div>
+      <div><span class="n zero">0</span><span class="k">Real-hardware results</span></div>
     </div>
   </div>
-</div>
 
-<div class="wrap">
-  <section id="result">
+  <nav class="contents col anchored" style="--mark-top: 0.55em;" aria-label="Contents">
+    <span class="mark">Contents</span>
+    <ol>
+      <li><span class="no">1</span><a href="#gap">The gap</a><span class="leader" aria-hidden="true"></span></li>
+      <li><span class="no">2</span><a href="#result">The first result is a negative one</a><span class="leader" aria-hidden="true"></span></li>
+      <li><span class="no">3</span><a href="#code">What is built</a><span class="leader" aria-hidden="true"></span></li>
+      <li><span class="no">4</span><a href="#app">The app</a><span class="leader" aria-hidden="true"></span></li>
+      <li><span class="no">5</span><a href="#open">What is not true yet</a><span class="leader" aria-hidden="true"></span></li>
+    </ol>
+  </nav>
+
+  <section id="gap" class="anchored">
+    <span class="mark">&sect;&thinsp;1</span>
+    <h2>The gap</h2>
+    <div class="col">
+      <p>
+        Every task in a sealed cell is performed by a person driving a manipulator through
+        a screen, slowly, one operator to one machine. Dose limits cap the hours available
+        absolutely, so automating this is not displacing a worker. It is creating capacity
+        that does not otherwise exist.
+      </p>
+      <p>
+        There is no accepted evidence standard for when a learned policy may run in that
+        setting, and almost no real-hardware data to build one from. This work is an
+        attempt at both: collect demonstrations from the operation that is already
+        happening, and prove policy quality to a standard a regulator could accept.
+      </p>
+    </div>
+  </section>
+
+  <section id="result" class="anchored">
+    <span class="mark">&sect;&thinsp;2</span>
     <h2>The first result is a negative one</h2>
-    <p>
-      A behaviour-cloning policy trained on the pipeline below beats the obvious
-      baselines by about four times. It also loses to the least clever baseline there
-      is, which is repeating the previous action, at every point across the prediction
-      horizon.
-    </p>
+    <div class="col">
+      <p>
+        A behaviour-cloning policy trained on the pipeline below beats the obvious
+        baselines by about four times. It also loses to the least clever baseline there
+        is, which is repeating the previous action, at every point across the prediction
+        horizon.
+      </p>
+    </div>
 
-    <figure>
+    <figure class="wide anchored" style="--mark-top: 0.1em;">
+      <span class="mark">Fig.&nbsp;1</span>
       <div class="legend">
-        <span><i style="background:var(--series-1)"></i>trained policy</span>
-        <span><i style="background:var(--series-2)"></i>repeat last action</span>
+        <span class="s1"><i class="swatch" aria-hidden="true"></i>Trained policy</span>
+        <span class="s2"><i class="swatch" aria-hidden="true"></i>Repeat last action</span>
+        <span class="s3"><i class="swatch" aria-hidden="true"></i>Margin by which the policy is worse</span>
       </div>
-      <div class="chart">
-      <svg viewBox="0 0 640 236" width="100%" role="img"
-           aria-label="Mean absolute error against horizon offset. The trained policy is above the persistence baseline at every offset from 0 to 7, meaning worse.">
-        <g font-size="13" fill="var(--muted)" font-family="inherit">
-          <line x1="64" x2="624" y1="186" y2="186" stroke="var(--rule)" stroke-width="1"/>
-          <line x1="64" x2="624" y1="132" y2="132" stroke="var(--rule)" stroke-width="1"/>
-          <line x1="64" x2="624" y1="78"  y2="78"  stroke="var(--rule)" stroke-width="1"/>
-          <line x1="64" x2="624" y1="24"  y2="24"  stroke="var(--rule)" stroke-width="1"/>
-          <text x="56" y="190" text-anchor="end">0.000</text>
-          <text x="56" y="136" text-anchor="end">0.008</text>
-          <text x="56" y="82"  text-anchor="end">0.016</text>
-          <text x="56" y="28"  text-anchor="end">0.024</text>
-          <text x="64"  y="208" text-anchor="middle">0</text>
-          <text x="344" y="208" text-anchor="middle">4</text>
-          <text x="624" y="208" text-anchor="middle">7</text>
-          <text x="344" y="230" text-anchor="middle">horizon offset</text>
-          <text x="14" y="105" transform="rotate(-90 14 105)" text-anchor="middle">MAE (rad)</text>
-        </g>
-        <!-- policy: 0.00773 0.01038 0.01259 0.01480 0.01688 0.01908 0.02143 0.02368 -->
-        <path d="M64,133.9 L144,116.0 L224,101.1 L304,86.2 L384,72.1 L464,57.3 L544,41.4 L624,26.3"
-              fill="none" stroke="var(--series-1)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-        <!-- persistence: 0.00362 0.00666 0.00919 0.01152 0.01369 0.01606 0.01859 0.02106 -->
-        <path d="M64,161.6 L144,141.1 L224,124.0 L304,108.3 L384,93.6 L464,77.6 L544,60.5 L624,43.8"
-              fill="none" stroke="var(--series-2)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-      </svg>
+      <div class="plot" tabindex="0" role="group" aria-label="Figure 1, scrollable chart">
+        <svg viewBox="0 0 660 372" width="660" height="372" role="img"
+             aria-labelledby="figTitle figDesc" preserveAspectRatio="xMidYMid meet">
+          <title id="figTitle">Mean absolute error against horizon offset</title>
+          <desc id="figDesc">Two series over horizon offsets 0 to 7. The trained policy rises from
+          0.00773 to 0.02368 radians. Repeating the last action rises from 0.00362 to 0.02106
+          radians. The trained policy is above the persistence baseline at every offset, and
+          lower is better, so the trained policy is worse everywhere.</desc>
+
+          <defs>
+            <pattern id="figHatch" width="8" height="8" patternUnits="userSpaceOnUse"
+                     patternTransform="rotate(-45)">
+              <line class="hatch" x1="0" y1="0" x2="0" y2="8"/>
+            </pattern>
+          </defs>
+
+          <!-- gridlines -->
+          <g class="grid">
+            <line x1="78" x2="520" y1="245.6" y2="245.6"/>
+            <line x1="78" x2="520" y1="191.2" y2="191.2"/>
+            <line x1="78" x2="520" y1="136.8" y2="136.8"/>
+            <line x1="78" x2="520" y1="82.4"  y2="82.4"/>
+            <line x1="78" x2="520" y1="28"    y2="28"/>
+          </g>
+
+          <!-- the margin between the two series, tinted and hatched so it
+               reads as an area rather than as the space between two lines -->
+          <path class="bandfill" d="M78,215.89 L141.14,187.07 L204.29,163.02 L267.43,138.98 L330.57,116.34 L393.71,92.41 L456.86,66.84 L520,42.36 L520,70.87 L456.86,97.74 L393.71,125.27 L330.57,151.05 L267.43,174.65 L204.29,200.01 L141.14,227.54 L78,260.61 Z"/>
+          <path fill="url(#figHatch)" d="M78,215.89 L141.14,187.07 L204.29,163.02 L267.43,138.98 L330.57,116.34 L393.71,92.41 L456.86,66.84 L520,42.36 L520,70.87 L456.86,97.74 L393.71,125.27 L330.57,151.05 L267.43,174.65 L204.29,200.01 L141.14,227.54 L78,260.61 Z"/>
+
+          <!-- axes -->
+          <g class="axis">
+            <line x1="78" x2="78" y1="28" y2="300"/>
+            <line x1="78" x2="520" y1="300" y2="300"/>
+          </g>
+          <g class="tick">
+            <line x1="72" x2="78" y1="300"   y2="300"/>
+            <line x1="72" x2="78" y1="245.6" y2="245.6"/>
+            <line x1="72" x2="78" y1="191.2" y2="191.2"/>
+            <line x1="72" x2="78" y1="136.8" y2="136.8"/>
+            <line x1="72" x2="78" y1="82.4"  y2="82.4"/>
+            <line x1="72" x2="78" y1="28"    y2="28"/>
+            <line x1="78"     x2="78"     y1="300" y2="306"/>
+            <line x1="141.14" x2="141.14" y1="300" y2="306"/>
+            <line x1="204.29" x2="204.29" y1="300" y2="306"/>
+            <line x1="267.43" x2="267.43" y1="300" y2="306"/>
+            <line x1="330.57" x2="330.57" y1="300" y2="306"/>
+            <line x1="393.71" x2="393.71" y1="300" y2="306"/>
+            <line x1="456.86" x2="456.86" y1="300" y2="306"/>
+            <line x1="520"    x2="520"    y1="300" y2="306"/>
+          </g>
+
+          <!-- y tick labels -->
+          <g class="tlabel" text-anchor="end">
+            <text x="64" y="304">0.000</text>
+            <text x="64" y="249.6">0.005</text>
+            <text x="64" y="195.2">0.010</text>
+            <text x="64" y="140.8">0.015</text>
+            <text x="64" y="86.4">0.020</text>
+            <text x="64" y="32">0.025</text>
+          </g>
+
+          <!-- x tick labels -->
+          <g class="tlabel" text-anchor="middle">
+            <text x="78"     y="322">0</text>
+            <text x="141.14" y="322">1</text>
+            <text x="204.29" y="322">2</text>
+            <text x="267.43" y="322">3</text>
+            <text x="330.57" y="322">4</text>
+            <text x="393.71" y="322">5</text>
+            <text x="456.86" y="322">6</text>
+            <text x="520"    y="322">7</text>
+          </g>
+
+          <!-- axis titles -->
+          <text class="atitle" x="299" y="350" text-anchor="middle">HORIZON OFFSET (STEPS AHEAD)</text>
+          <text class="atitle" x="18" y="164" text-anchor="middle" transform="rotate(-90 18 164)">MEAN ABSOLUTE ERROR (rad)</text>
+
+          <!-- persistence baseline: dashed ink -->
+          <path d="M78,260.61 L141.14,227.54 L204.29,200.01 L267.43,174.65 L330.57,151.05 L393.71,125.27 L456.86,97.74 L520,70.87"
+                class="s2line" fill="none" stroke-width="1.75" stroke-dasharray="7 4"
+                stroke-linejoin="round" stroke-linecap="round"/>
+          <g class="s2dot" stroke-width="1.5">
+            <circle cx="78" cy="260.61" r="3"/>
+            <circle cx="141.14" cy="227.54" r="3"/>
+            <circle cx="204.29" cy="200.01" r="3"/>
+            <circle cx="267.43" cy="174.65" r="3"/>
+            <circle cx="330.57" cy="151.05" r="3"/>
+            <circle cx="393.71" cy="125.27" r="3"/>
+            <circle cx="456.86" cy="97.74" r="3"/>
+            <circle cx="520" cy="70.87" r="3"/>
+          </g>
+
+          <!-- trained policy: solid accent -->
+          <path d="M78,215.89 L141.14,187.07 L204.29,163.02 L267.43,138.98 L330.57,116.34 L393.71,92.41 L456.86,66.84 L520,42.36"
+                class="s1line" fill="none" stroke-width="2.25"
+                stroke-linejoin="round" stroke-linecap="round"/>
+          <g class="s1dot" stroke="none">
+            <circle cx="78" cy="215.89" r="3.1"/>
+            <circle cx="141.14" cy="187.07" r="3.1"/>
+            <circle cx="204.29" cy="163.02" r="3.1"/>
+            <circle cx="267.43" cy="138.98" r="3.1"/>
+            <circle cx="330.57" cy="116.34" r="3.1"/>
+            <circle cx="393.71" cy="92.41" r="3.1"/>
+            <circle cx="456.86" cy="66.84" r="3.1"/>
+            <circle cx="520" cy="42.36" r="3.1"/>
+          </g>
+
+          <!-- labels at the line ends -->
+          <text class="dlabel lab1" x="530" y="46">Trained policy</text>
+          <text class="dlabel lab2" x="530" y="75">Repeat last action</text>
+          <text class="tlabel" x="530" y="93">Lower is better</text>
+        </svg>
+      </div>
+      <div class="readout">
+        <p class="tcaption"><span class="lab">Readout.</span> The two series at every
+        offset, in radians, and the shaded margin between them. Positive margin means
+        the trained policy is the worse predictor at that offset.</p>
+        <div class="scroll" tabindex="0" role="group" aria-label="Figure 1 readout, scrollable">
+          <table class="rdt">
+            <thead>
+              <tr><th scope="col">Horizon offset</th><th scope="col">0</th><th scope="col">1</th><th scope="col">2</th><th scope="col">3</th><th scope="col">4</th><th scope="col">5</th><th scope="col">6</th><th scope="col">7</th></tr>
+            </thead>
+            <tbody>
+            <tr><th scope="row">Trained policy</th><td>0.00773</td><td>0.01038</td><td>0.01259</td><td>0.01480</td><td>0.01688</td><td>0.01908</td><td>0.02143</td><td>0.02368</td></tr>
+            <tr><th scope="row">Repeat last action</th><td>0.00362</td><td>0.00666</td><td>0.00919</td><td>0.01152</td><td>0.01369</td><td>0.01606</td><td>0.01859</td><td>0.02106</td></tr>
+            <tr class="gap"><th scope="row">Policy worse by</th><td>+0.00411</td><td>+0.00372</td><td>+0.00340</td><td>+0.00328</td><td>+0.00319</td><td>+0.00302</td><td>+0.00284</td><td>+0.00262</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
       <figcaption>
-        Lower is better, so the blue line being above the orange one means the trained
-        policy is worse than repeating the last command, everywhere. Measured on 55
-        held-out episodes, 8,054 windows, split by session so no session appears on both
-        sides.
+        <span class="lab">Figure 1.</span> Mean absolute error against prediction horizon
+        offset. Lower is better, so the policy line sitting above the baseline means it is
+        worse. Measured on 55 held-out episodes, 8,054 windows, split by session so no
+        session appears on both sides.
       </figcaption>
     </figure>
 
-    <div class="scroll">
-      <table>
-        <thead>
-          <tr><th>Predictor</th><th class="num">Chunk MAE (rad)</th><th>What it is</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>repeat last action</td><td class="num">0.01255</td><td>Free. No model.</td></tr>
-          <tr><td>trained policy</td><td class="num">0.01582</td><td>Behaviour cloning with action chunking.</td></tr>
-          <tr><td>training-set mean</td><td class="num">0.06670</td><td>Free. Exploits directional bias only.</td></tr>
-          <tr><td>command no motion</td><td class="num">0.07261</td><td>The floor.</td></tr>
-        </tbody>
-      </table>
+    <div class="tablewrap wide anchored" style="--mark-top: 0.3em;">
+      <span class="mark">Table&nbsp;1</span>
+      <p class="tcaption"><span class="lab">Table 1.</span> Chunk mean absolute error in radians, lower is better.</p>
+      <div class="scroll" tabindex="0" role="group" aria-label="Table 1, scrollable">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Predictor</th>
+              <th scope="col" class="num">Chunk MAE (rad)</th>
+              <th scope="col">What it is</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Repeat last action</td><td class="num">0.01255</td><td>Free. No model.</td></tr>
+            <tr><td>Trained policy</td><td class="num">0.01582</td><td>Behaviour cloning with action chunking.</td></tr>
+            <tr><td>Training-set mean</td><td class="num">0.06670</td><td>Free. Exploits directional bias only.</td></tr>
+            <tr><td>Command no motion</td><td class="num">0.07261</td><td>The floor.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <div class="note">
-      <p><b>This is the point, not an embarrassment.</b>
-      The same number reported without a persistence baseline would have looked like a
-      working policy. Most published action-error figures in robot learning are reported
-      against nothing. The evaluation here refuses to let that happen, and it refuses in
-      the direction that costs me something.</p>
+    <div class="callout">
+      <p class="cmark">The point</p>
+      <p class="lead">This is the point, not an embarrassment.</p>
+      <p class="after">
+        The same number reported without a persistence baseline would have looked like a
+        working policy. Most published action-error figures in robot learning are reported
+        against nothing. The evaluation here refuses to let that happen, and it refuses in
+        the direction that costs me something.
+      </p>
     </div>
 
-    <p>
-      The result above is on simulated data, where trajectories are smooth and repeating
-      the last command is close to unbeatable. On real teleoperation the operator makes
-      discrete decisions and persistence should break at the transitions. Whether a
-      policy wins there is an open question, and answering it on real hardware is the
-      next piece of work rather than something to assert now.
-    </p>
+    <div class="col">
+      <p>
+        The result above is on simulated data, where trajectories are smooth and repeating
+        the last command is close to unbeatable. On real teleoperation the operator makes
+        discrete decisions and persistence should break at the transitions. Whether a
+        policy wins there is an open question, and answering it on real hardware is the
+        next piece of work rather than something to assert now.
+      </p>
+    </div>
   </section>
 
-  <section id="code">
+  <section id="code" class="anchored">
+    <span class="mark">&sect;&thinsp;3</span>
     <h2>What is built</h2>
-    <p>
-      Nine repositories, all public, all runnable from a clean clone on generated data
-      so none of it requires lab access to assess. Three of them exist because a result
-      came back negative and was published anyway.
-    </p>
-    <ul class="plain">
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/teleop-pipeline">teleop-pipeline</a>
-        <span class="meta">7,147 lines &middot; 114 tests</span>
+    <div class="col">
+      <p>
+        Nine public repositories, all runnable from a clean clone on generated data, so
+        none of it needs lab access to assess. Three exist because a result came back
+        negative and was published anyway.
+      </p>
+    </div>
+
+    <ul class="repos wide">
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/teleop-pipeline">teleop-pipeline</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests"><span data-check="tests">139</span> tests</span>
+        </div>
         <p>Raw operator sessions in, a schema-checked, resampled, quality-scored and
         content-addressed corpus out, with every trained policy traceable to the exact
-        bytes it was trained on. Nine quality metrics, each with a defect-injection test
-        proving it catches what it claims.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/vla-evals">vla-evals</a>
-        <span class="meta">2,494 lines &middot; 42 tests</span>
+        bytes it was trained on.</p>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/vla-evals">vla-evals</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">42 tests</span>
+        </div>
         <p>Paired evaluation with McNemar exact tests and bootstrap confidence intervals.
-        Refuses to declare a winner the evidence cannot resolve, and prints the smallest
-        effect the sample could have detected when it finds nothing.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/edge-policy-runtime">edge-policy-runtime</a>
-        <span class="meta">4,284 lines &middot; 89 tests</span>
+        Refuses to declare a winner the evidence cannot resolve.</p>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/edge-policy-runtime">edge-policy-runtime</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">89 tests</span>
+        </div>
         <p>Signed over-the-air policy delivery with an on-device pre-flight health gate
-        that refuses to run a bundle failing its checks or its signature.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/robot-fleet-loop">robot-fleet-loop</a>
-        <span class="meta">4,639 lines &middot; 93 tests</span>
+        that refuses to run a bundle failing its checks.</p>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/robot-fleet-loop">robot-fleet-loop</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">93 tests</span>
+        </div>
         <p>The return path: telemetry, failure triage, retraining, canary and rollback,
         with a gate that can actually say no.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/interactive-correction-for-manipulation">interactive-correction-for-manipulation</a>
-        <span class="meta">9,533 lines &middot; 57 tests</span>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/interactive-correction-for-manipulation">interactive-correction-for-manipulation</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">57 tests</span>
+        </div>
         <p>What it costs when a human correction is credited to the wrong part of a
         trajectory, and how often that happens.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/isaac-grasp-scaling">isaac-grasp-scaling</a>
-        <span class="meta">7,146 lines &middot; 131 tests</span>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/isaac-grasp-scaling">isaac-grasp-scaling</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">131 tests</span>
+        </div>
         <p>Does a grasping network's orientation failure survive more data, or was the
-        dataset simply too small? Answered rather than assumed.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/simulated-grasping">simulated-grasping</a>
-        <span class="meta">7,147 lines &middot; 113 tests</span>
+        dataset simply too small?</p>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/simulated-grasping">simulated-grasping</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">113 tests</span>
+        </div>
         <p>Grasping in simulation, including what it takes to train one without a GPU and
         what that costs in precision.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/ros2-grasp-latency">ros2-grasp-latency</a>
-        <span class="meta">10,159 lines &middot; 29 tests</span>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/ros2-grasp-latency">ros2-grasp-latency</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">29 tests</span>
+        </div>
         <p>How much end-to-end latency writing a ROS 2 grasp node in Python actually
         costs, measured rather than argued about.</p>
-      </div></li>
-      <li><div class="repo">
-        <a href="https://github.com/abyyworld/erl-semantic-mapping">erl-semantic-mapping</a>
-        <span class="meta">1,544 lines &middot; 36 tests</span>
+      </li>
+      <li>
+        <div class="rline">
+          <a href="https://github.com/abyyworld/erl-semantic-mapping">erl-semantic-mapping</a>
+          <span class="leader" aria-hidden="true"></span>
+          <span class="tests">36 tests</span>
+        </div>
         <p>Semantic occupancy mapping with an evaluation harness that gates on its own
         assumptions.</p>
-      </div></li>
+      </li>
     </ul>
   </section>
 
-  <section id="app">
+  <section id="app" class="anchored">
+    <span class="mark">&sect;&thinsp;4</span>
     <h2>The app</h2>
-    <p>
-      The whole pipeline also runs as a desktop app, for the case where you are standing
-      at a rig rather than sitting at a terminal. A button per stage, a live log, and the
-      results. It leads with whether the policy beats the baselines and says so in the
-      red case as plainly as the green one.
-    </p>
-    <div class="dl">
-      <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-macos-arm64">macOS <span>Apple silicon, 220 MB</span></a>
-      <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-windows-x86_64.exe">Windows <span>x86-64, 218 MB</span></a>
-      <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-linux-x86_64">Linux <span>x86-64, 331 MB</span></a>
+    <div class="col">
+      <p>
+        The pipeline also runs as a desktop app, for standing at a rig rather than sitting
+        at a terminal. A button per stage, a live log, and the results. It leads with
+        whether the policy beats the baselines, and says so in the red case as plainly as
+        the green.
+      </p>
     </div>
-    <p style="color:var(--muted); font-size:14.5px">
-      PyTorch is bundled, which is where the size goes. Nothing else to install.
-      A machine with a GPU should install the package instead and get the GPU build.
-    </p>
 
-    <h3 style="margin-top:22px">Your browser will warn you, and it is right to</h3>
-    <p>
-      These binaries are not code-signed, because a signing certificate costs money this
-      project does not yet spend. Chrome, Windows SmartScreen and macOS Gatekeeper all
-      treat an unsigned executable as suspect. That warning is about a missing
-      certificate, not about anything found in the file, but you should not take that on
-      faith from a web page either. Check it instead:
-    </p>
-    <ul class="plain" style="font-size:15px">
-      <li><strong>Compare the hash.</strong> Every release ships a
-        <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest">SHA256SUMS</a>
-        file. Run <code>shasum -a 256 &lt;file&gt;</code> on macOS or Linux, or
-        <code>Get-FileHash &lt;file&gt;</code> in PowerShell, and compare.</li>
-      <li><strong>Check the provenance.</strong> Each binary carries a signed attestation
-        tying it to the workflow, repository and commit that produced it.
-        <code>gh attestation verify &lt;file&gt; --repo abyyworld/teleop-pipeline</code>
-        confirms that cryptographically.</li>
-      <li><strong>Or skip the binary.</strong> <code>pip install -e ".[dev,all]"</code>
-        from a clone, then <code>teleop-pipeline studio</code>. Same app, built on your
-        machine from source you can read.</li>
+    <ul class="downloads wide">
+      <li>
+        <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-macos-arm64">
+          <span class="os">macOS</span>
+          <span class="spec">Apple silicon, 220 MB</span>
+          <span class="file">teleop-studio-macos-arm64</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-windows-x86_64.exe">
+          <span class="os">Windows</span>
+          <span class="spec">x86-64, 218 MB</span>
+          <span class="file">teleop-studio-windows-x86_64.exe</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://github.com/abyyworld/teleop-pipeline/releases/latest/download/teleop-studio-linux-x86_64">
+          <span class="os">Linux</span>
+          <span class="spec">x86-64, 331 MB</span>
+          <span class="file">teleop-studio-linux-x86_64</span>
+        </a>
+      </li>
     </ul>
-    <p style="color:var(--muted); font-size:14.5px">
-      On macOS, keeping the file still leaves it quarantined, so it needs
-      <code>xattr -d com.apple.quarantine ./teleop-studio-macos-arm64</code> once before
-      it will run.
-    </p>
+
+    <div class="col">
+      <h3>Your browser will warn you, and it is right to</h3>
+      <p class="sub">
+        The binaries are not code-signed, because a certificate costs money this project
+        does not yet spend. That warning is about a missing certificate, not about
+        anything found in the file, but you should not take that on faith from a web page
+        either. Three ways to check:
+      </p>
+      <ol class="checks">
+        <li><strong>Compare the hash</strong> against the <code>SHA256SUMS</code> file in
+          the release.</li>
+        <li><strong>Check the provenance.</strong> Run
+          <code>gh attestation verify &lt;file&gt; --repo abyyworld/teleop-pipeline</code>
+          against the signed build provenance.</li>
+        <li><strong>Or skip the binary</strong> and install from source with
+          <code>pip</code>.</li>
+      </ol>
+      <p class="sub">
+        macOS also needs
+        <code>xattr -d com.apple.quarantine ./teleop-studio-macos-arm64</code> once.
+      </p>
+    </div>
   </section>
 
-  <section id="open">
+  <section id="open" class="anchored">
+    <span class="mark">&sect;&thinsp;5</span>
     <h2>What is not true yet</h2>
-    <p>
-      Stated here rather than buried, because the entire method being proposed is
-      refusing to report a number that cannot be defended.
-    </p>
-    <ul class="plain">
-      <li><strong>No real-hardware result.</strong> Every figure on this page comes from
-        simulation or generated data.</li>
-      <li><strong>No users.</strong> Nobody outside the project has run any of it.</li>
+    <div class="col">
+      <p>
+        Stated plainly rather than buried, because the whole method is refusing to report
+        a number that cannot be defended.
+      </p>
+    </div>
+
+    <ul class="nots wide">
+      <li><strong>No real-hardware result.</strong>
+        <span>Every figure here comes from simulation or generated data.</span></li>
+      <li><strong>No users.</strong>
+        <span>Nobody outside the project has run any of it.</span></li>
       <li><strong>No revenue, no pricing, no letters of intent.</strong></li>
-      <li><strong>No operator interviews yet.</strong> The choice of which task to
-        automate first is a hypothesis, not a finding.</li>
-      <li><strong>One person.</strong> Finding a second is an explicit milestone, not an
-        afterthought.</li>
+      <li><strong>No operator interviews yet.</strong>
+        <span>The choice of first task is a hypothesis, not a finding.</span></li>
+      <li><strong>One person.</strong>
+        <span>Finding a second is an explicit milestone, not an afterthought.</span></li>
     </ul>
-    <p style="margin-top:18px">
-      The next piece of work is one task, one real manipulator, demonstrations collected
-      through the existing recorder, a policy trained on them, and a paired evaluation
-      against the operator baseline. Published whichever way it goes. That needs about a
-      month of lab time and no capital.
-    </p>
+
+    <div class="col">
+      <p class="closing">
+        The next piece of work is one task, one real manipulator, demonstrations collected
+        through the existing recorder, a policy trained on them, and a paired evaluation
+        against the operator baseline. Published whichever way it goes. About a month of
+        lab time and no capital.
+      </p>
+    </div>
   </section>
+
 </div>
 </main>
 
 <footer>
-  <div class="wrap">
-    Work in progress, by <a href="https://github.com/abyyworld">abyyworld</a>.
-    Figures on this page were produced by running the code, not counted from source.
-    <a href="https://github.com/abyyworld/teleop-pipeline/blob/main/index.html">Source for this page</a>.
+  <div class="sheet">
+    <p class="colophon">
+      Work in progress, by <a href="https://github.com/abyyworld">abyyworld</a>.
+      Figures were produced by running the code, not counted from source.
+      <a href="https://github.com/abyyworld/teleop-pipeline/blob/main/index.html">Source for this page</a>.
+    </p>
   </div>
 </footer>
+
+<script>
+/* Progressive enhancement only. With JavaScript off the page keeps the
+   operating system preference and every word stays readable. */
+(function () {
+  var root = document.documentElement;
+  var stored = null;
+  try { stored = localStorage.getItem("theme"); } catch (e) {}
+  if (stored === "light" || stored === "dark") { root.setAttribute("data-theme", stored); }
+  root.setAttribute("data-js", "");
+
+  function current() {
+    var set = root.getAttribute("data-theme");
+    if (set) { return set; }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var btn = document.getElementById("themeToggle");
+    if (!btn) { return; }
+    function sync() {
+      var dark = current() === "dark";
+      btn.textContent = dark ? "Light" : "Dark";
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      btn.setAttribute("aria-label", dark ? "Switch to the light theme" : "Switch to the dark theme");
+    }
+    sync();
+    btn.addEventListener("click", function () {
+      var next = current() === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("theme", next); } catch (e) {}
+      sync();
+    });
+  });
+})();
+</script>
 
 </body>
 </html>

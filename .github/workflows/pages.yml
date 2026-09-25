@@ -1,16 +1,15 @@
 name: pages
 
 # The site is served straight from the default branch (Settings -> Pages,
-# "Deploy from a branch", main, root), so nothing here deploys it. What this
-# does is keep the page honest, because a branch deploy will happily publish a
-# broken one.
+# "Deploy from a branch", main, root), so nothing stands between a bad commit
+# and the live page. This is that missing gate.
 
 on:
   push:
     branches: [main]
-    paths: ["index.html", ".github/workflows/pages.yml"]
+    paths: ["index.html", "tools/check_page.py", ".github/workflows/pages.yml"]
   pull_request:
-    paths: ["index.html"]
+    paths: ["index.html", "tools/check_page.py"]
   workflow_dispatch:
 
 permissions:
@@ -21,55 +20,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
 
-      - name: The page must not reference anything it cannot serve
+      - name: Install the browser the rendered checks need
         run: |
-          # No external scripts, styles or fonts: the site has to render on a
-          # lab machine with no outbound network, and a third-party request
-          # from this page would also be a tracking vector.
-          if grep -nEi '<(script|link)[^>]+(src|href)="https?://' index.html; then
-            echo "external resource referenced above" >&2
+          python -m pip install --upgrade pip
+          pip install playwright
+          playwright install --with-deps chromium
+
+      - name: Check the page
+        run: python tools/check_page.py index.html --render
+
+      - name: The figures the page quotes must still be true
+        run: |
+          # The page states a test count for this repository, and it moves every
+          # time code lands. Reading it from an explicit marker rather than from
+          # prose means a redesign cannot silently disconnect this check:
+          #   <span data-check="tests">139</span>
+          pip install -e ".[dev]"
+          collected=$(python -m pytest --collect-only -q 2>/dev/null \
+            | awk -F': ' '/: [0-9]+$/ {s+=$2} END {print s}')
+          claimed=$(grep -oE 'data-check="tests"[^>]*>[0-9,]+' index.html \
+            | grep -oE '[0-9,]+$' | tr -d ',')
+          echo "collected=$collected claimed=$claimed"
+          if [ -z "$claimed" ]; then
+            echo 'index.html carries no data-check="tests" marker, so its test' >&2
+            echo 'count cannot be verified. Add the marker or remove the claim.' >&2
             exit 1
           fi
-
-      - name: Every tag must be balanced
-        run: |
-          python - <<'CHECK'
-          import html.parser
-          import sys
-
-          src = open("index.html", encoding="utf-8").read()
-          stack = []
-          void = {"br", "hr", "img", "meta", "link", "input", "source", "path",
-                  "line", "circle", "rect", "use"}
-
-          class P(html.parser.HTMLParser):
-              def handle_starttag(self, tag, attrs):
-                  if tag not in void:
-                      stack.append(tag)
-              def handle_endtag(self, tag):
-                  # An unbalanced document still renders, just not as written.
-                  if tag in void:
-                      return
-                  if not stack or stack[-1] != tag:
-                      sys.exit(f"tag mismatch: </{tag}> closes {stack[-1:] or ['nothing']}")
-                  stack.pop()
-
-          P().feed(src)
-          if stack:
-              sys.exit(f"unclosed tags: {stack}")
-          print(f"page parses, {len(src)} bytes, every tag balanced")
-          CHECK
-
-      - name: The figures on the page must match the repositories
-        run: |
-          # The page quotes this repository's own line and test counts. They
-          # drift every time code lands, and a stale number on a public page is
-          # the kind of thing a reader checks.
-          lines=$(git ls-files '*.py' | xargs cat | wc -l | tr -d ' ')
-          claimed=$(grep -oE '[0-9,]+ lines &middot; [0-9]+ tests' index.html | head -1 | grep -oE '^[0-9,]+' | tr -d ',')
-          echo "repository: $lines lines, page claims: $claimed"
-          if [ "$lines" != "$claimed" ]; then
-            echo "the page's line count for this repository is stale" >&2
+          if [ "$collected" != "$claimed" ]; then
+            echo "the page says $claimed tests, the suite collects $collected" >&2
             exit 1
           fi
